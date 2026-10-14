@@ -9,9 +9,9 @@ export const ANIME_RPG_PATHS = Object.freeze({
   jinwoo: { title: 'Sung Jinwoo · Hunter Training', quest: 'Hunter', ranks: ['E-Rank Hunter', 'D-Rank Hunter', 'C-Rank Hunter'], arcs: ['Hunter Initiation', 'Dungeon Training'] },
 })
 const PATH_ROUTINES = {
-  saitama: /^Saitama · Hero Foundation [ABC](?: — (?:Strength|Endurance|Conditioning))?$/,
-  goku: /^Goku · Saiyan Foundation [ABC] — (?:Strength|Power|Conditioning)$/,
-  jinwoo: /^Sung Jinwoo · Hunter Foundation [ABC] — (?:Strength|Agility|Endurance)$/,
+  saitama: /^Saitama · Hero Foundation [ABC](?: — (?:Strength|Endurance|Conditioning))?(?: · Week (?:[2-9]))?$/,
+  goku: /^Goku · Saiyan Foundation [ABC] — (?:Strength|Power|Conditioning)(?: · Week (?:[2-9]|10))?$/,
+  jinwoo: /^Sung Jinwoo · Hunter Foundation [ABC] — (?:Strength|Agility|Endurance)(?: · Week (?:[2-9]))?$/,
 }
 const isAnimePath = path => Object.hasOwn(PATH_ROUTINES, path)
 
@@ -35,6 +35,8 @@ export function animeSessionSnapshot(state, routineIds, entries) {
     e.noProg === true || e.sets.some(s => !isReps(s) || s?.warmup === true || s?.sides))) return null
   return {
     v: 1, path, routineId: ids[0],
+    slot: / Foundation ([ABC])(?: —|$)/.exec(routine.name)?.[1] || null,
+    trainingWeek: Number(state?.animeAscension?.programs?.[path]?.loadedWeek) || 1,
     // Source prescription, not rewritten by subsequent exercise swaps or plan edits.
     requirements: es.map(e => ({ id: e.id, reps: e.sets.map(s => Number(s.r)) })),
   }
@@ -50,7 +52,7 @@ export function animeActiveFields(state, routineIds, entries) {
 export function animeSessionProof(active) {
   const snap = active?.animeAscension
   if (snap?.v !== 1 || !isAnimePath(snap.path) || !Array.isArray(snap.requirements)) return null
-  return { v: 1, path: snap.path, routineId: snap.routineId, requirements: snap.requirements }
+  return { v: 1, path: snap.path, routineId: snap.routineId, slot: snap.slot || null, trainingWeek: snap.trainingWeek || null, requirements: snap.requirements }
 }
 
 export function isQualifiedAnimeWorkout(workout) {

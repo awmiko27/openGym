@@ -2,6 +2,7 @@
 // Exercises remain openGym catalogue references. These are practical beginner-friendly
 // interpretations of the themes, not fictional feats or unsafe character workouts.
 import { saitamaDifficulty } from './saitama.js'
+import { trainingPrescriptionDelta } from './training.js'
 
 const normalize = value => String(value || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim()
 const risky = /\b(jump|explosive|plyometric|clap|handstand|weighted|pistol|burpee|decline|snatch|clean and jerk)\b/
@@ -59,14 +60,15 @@ const DESIGNS = Object.freeze({
   },
 })
 
-const prescribe = (sets, reps, profile, focus) => {
+const prescribe = (sets, reps, profile, focus, path) => {
+  const advance = trainingPrescriptionDelta(path, profile?.trainingWeek)
   const { tier, goal } = saitamaDifficulty(profile)
   let nSets = sets + (tier === 2 ? 1 : 0)
   let nReps = reps + 2 * tier
   if (goal === 'strength') { nReps -= 1; if (tier >= 1 && focus === 'Strength') nSets++ }
   if (goal === 'endurance') nReps += 3
   if (goal === 'conditioning' && ['Conditioning', 'Endurance'].includes(focus)) nReps += 2
-  return { sets: Math.max(2, Math.min(4, nSets)), reps: Math.max(5, Math.min(18, nReps)) }
+  return { sets: Math.max(2, Math.min(4, nSets + advance.sets)), reps: Math.max(5, Math.min(20, nReps + advance.reps)) }
 }
 
 /** Build three openGym-native A/B/C sessions using openGym's own equipment policy.
@@ -101,9 +103,12 @@ export function buildCharacterFoundation(path, { catalogue, uid, equipment, isAv
       const movement = selections[slot]
       if (!movement || seen.has(movement.id)) continue
       seen.add(movement.id)
-      ex.push({ id: movement.id, ...prescribe(sets, reps, profile, design.titles[i]), weight: 0 })
+      ex.push({ id: movement.id, ...prescribe(sets, reps, profile, design.titles[i], path), weight: 0 })
     }
-    return { id: uid(), name: `${design.name} ${'ABC'[i]} — ${design.titles[i]}`, emoji: 'figureStrength', ex }
+    const week = Number(profile?.trainingWeek)
+    const maxWeek = path === 'goku' ? 10 : 9
+    const suffix = Number.isInteger(week) && week > 1 && week <= maxWeek ? ` · Week ${week}` : ''
+    return { id: uid(), name: `${design.name} ${'ABC'[i]} — ${design.titles[i]}${suffix}`, emoji: 'figureStrength', ex }
   })
   return { routines, schedule: DAYS.map((day, i) => ({ day, routineId: routines[i].id })) }
 }

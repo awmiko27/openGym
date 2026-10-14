@@ -1,3 +1,4 @@
+import { trainingPrescriptionDelta } from './training.js'
 // Anime Ascension / Saitama: three distinct, repeatable native openGym sessions.
 // AGPL-3.0-or-later. Reuse the catalogue and the caller's openGym equipment policy.
 // A = strength; B = muscular endurance; C = low-impact conditioning.
@@ -55,13 +56,14 @@ export function saitamaDifficulty(profile = {}) {
 }
 
 function prescription(baseSets, baseReps, profile, focus) {
+  const advance = trainingPrescriptionDelta('saitama', profile?.trainingWeek)
   const { tier, goal } = saitamaDifficulty(profile)
   let sets = baseSets + (tier === 2 ? 1 : 0)
   let reps = baseReps + tier * 2
   if (goal === 'strength') { reps -= 1; if (tier >= 1 && focus === 'strength') sets += 1 }
   if (goal === 'endurance') reps += 3
   if (goal === 'conditioning' && focus === 'conditioning') reps += 2
-  return [Math.max(2, Math.min(4, sets)), Math.max(5, Math.min(18, reps))]
+  return [Math.max(2, Math.min(4, sets + advance.sets)), Math.max(5, Math.min(20, reps + advance.reps))]
 }
 
 /**
@@ -91,8 +93,10 @@ export function buildSaitamaFoundation({ catalogue, uid, equipment, isAvailable 
   const calf = choose('calfRaise')
   const routine = (key, title, focus, list) => {
     const seen = new Set()
+    const week = Number(profile?.trainingWeek)
+    const weekSuffix = Number.isInteger(week) && week > 1 && week <= 9 ? ` · Week ${week}` : ''
     return {
-      id: uid(), name: `Saitama · Hero Foundation ${key.toUpperCase()} — ${title}`,
+      id: uid(), name: `Saitama · Hero Foundation ${key.toUpperCase()} — ${title}${weekSuffix}`,
       emoji: 'figureStrength',
       ex: list.filter(([exercise]) => exercise && !seen.has(exercise.id) && seen.add(exercise.id))
         .map(([exercise, sets, reps]) => {

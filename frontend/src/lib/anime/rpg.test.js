@@ -10,7 +10,11 @@ const wk = (id, d, entries = planned.map(e => ({ id: e.id, sets: e.sets.map(s =>
 
 describe('Anime Ascension Phase 3 RPG', () => {
   it('snapshots only the eligible single-character routine', () => {
-    expect(snap).toEqual({ v: 1, path: 'saitama', routineId: 'saitamaA', requirements: [{ id: 'push', reps: [6, 6] }, { id: 'squat', reps: [8, 8] }] })
+    expect(snap).toEqual({
+      v: 1, path: 'saitama', routineId: 'saitamaA',
+      slot: 'A', trainingWeek: 1,
+      requirements: [{ id: 'push', reps: [6, 6] }, { id: 'squat', reps: [8, 8] }],
+    })
     expect(animeSessionSnapshot(app, [], planned)).toBe(null)
     expect(animeSessionSnapshot(app, ['saitamaA', 'other'], planned)).toBe(null)
     expect(animeSessionSnapshot({ ...app, animeAscension: { path: 'goku' } }, ['saitamaA'], planned)).toBe(null)

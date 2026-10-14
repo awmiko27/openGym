@@ -5,6 +5,8 @@ import { loadStarterPlan } from '../sheets.jsx'
 import { activeProfile } from '../lib/equipment.js'
 import { scheduleModeOf } from '../lib/rotation.js'
 import { ANIME_PATHS, profileDraft, validateAnimeProfile } from '../lib/anime/profile.js'
+import { deriveTrainingArc, startTrainingArc } from '../lib/anime/training.js'
+import AnimeProgression from './AnimeProgression.jsx'
 
 const PLANS = {
   saitama: { id: 'saitama-foundation', name: 'Saitama · Hero Foundation', details: 'A — Strength, B — Endurance, C — Conditioning' },
@@ -46,7 +48,14 @@ export default function AnimeAscension() {
       // Respect openGym's own equipment-filter toggle and active profile.
       // When filtering is off, activeProfile returns null (all equipment),
       // so the starter plan loads as written without imposing restrictions.
-      const loaded = loadStarterPlan(PLANS[result.value.path].id, activeProfile(useStore.getState().S), result.value)
+      const previous = useStore.getState().S.animeAscension || {}
+      const program = previous.programs?.[result.value.path]
+      const arc = deriveTrainingArc(useStore.getState().S.workouts, result.value.path, program)
+      // Training weeks change the native starter-plan prescription, not the
+      // equipment inventory or saved workout history.
+      const trainingWeek = arc.started && !arc.completed ? arc.week : 1
+      const loaded = loadStarterPlan(PLANS[result.value.path].id,
+        activeProfile(useStore.getState().S), { ...result.value, trainingWeek })
       if (!loaded) {
         setLoadingError('No suitable workout could be built from the available exercise catalog and equipment. Nothing was changed.')
         return
@@ -54,7 +63,14 @@ export default function AnimeAscension() {
       // Replace the old Phase 2 profile only after the plan loads successfully.
       // Legacy duplicate weight, equipment and checkbox fields are retired.
       // No openGym bodyweight or equipment settings are modified.
-      update(st => { st.animeAscension = result.value })
+      update(st => {
+        const old = st.animeAscension || {}
+        const base = old.programs?.[result.value.path]?.v === 1
+          ? old.programs[result.value.path] : startTrainingArc()
+        st.animeAscension = { ...old, ...result.value, programs: {
+          ...(old.programs || {}), [result.value.path]: { ...base, loadedWeek: trainingWeek },
+        } }
+      })
       navigate('/plan')
     } catch (error) {
       console.error('Anime Ascension plan load failed:', error)
@@ -99,7 +115,7 @@ export default function AnimeAscension() {
     </form> : <section className="aa-section">
       <h2>Review before loading</h2>
       <p><strong>{PLANS[draft.path].name}</strong></p>
-      <p>{PLANS[draft.path].details}. Monday / Wednesday / Friday. Experience and goal adjust starting volume. Exercises follow openGym equipment Settings; existing demonstrations, workout logging, and character-specific XP continue to work.</p>
+      <p>{PLANS[draft.path].details}. Monday / Wednesday / Friday. Experience, goal, and your current training week adjust prescriptions. Exercises follow openGym equipment Settings; existing demonstrations, workout logging, and character-specific XP continue to work.</p>
       <p className="aa-warning">Loading this plan reassigns Monday, Wednesday, and Friday in your current fixed-week schedule. Existing workout history and routine records are retained. An active session will not be replaced.</p>
       {loadingError && <div role="alert" className="aa-errors">{loadingError}</div>}
       <div className="aa-actions">
@@ -107,6 +123,7 @@ export default function AnimeAscension() {
         <button type="button" className="btn primary" onClick={confirm}>Load training plan</button>
       </div>
     </section>}
+    <AnimeProgression path={draft.path} onLoadWeek={review} />
     <p className="aa-credits">Powered by the openGym training engine. Anime-inspired names are for this noncommercial fan project.</p>
   </main>
 }
