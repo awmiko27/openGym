@@ -86,11 +86,12 @@ describe('nothing re-implements the rule', () => {
    which is 20:00 the previous day in New York, so a date-only workout logged today was already
    four hours old to every window filter and could fall out of one early. */
 describe('a date-only workout against a window edge', () => {
-  it('stays inside a window that a UTC-midnight parse would push it out of', () => {
+  it('keeps a date-only workout after the 06:00 local cutoff in every timezone', () => {
     const iso = '2026-09-22'
     // A window that opened at 06:00 local on the workout's own day.
     const opened = new Date('2026-09-22T06:00:00').getTime()
-    expect(workoutAt({ d: iso })).toBeGreaterThan(opened)
-    expect(new Date(iso).getTime()).toBeLessThan(opened)   // what the hand-rolled copies computed
+    const timestamp = workoutAt({ d: iso })
+    expect(timestamp).toBeGreaterThan(opened)
+    expect(timestamp).toBe(new Date('2026-09-22T12:00:00').getTime())
   })
 })

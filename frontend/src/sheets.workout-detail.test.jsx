@@ -165,7 +165,11 @@ describe('export as .fit', () => {
     const host = mountTopSheet()
     await act(async () => { button(host, 'Export as .fit file').click() })
     expect(clicked).toHaveLength(1)
-    expect(clicked[0]).toMatch(/^opengym-2026-09-15-\d{4}\.fit$/)
+    // Export uses the workout start in the user's local timezone.
+    const localDate = new Date(w.start)
+    const ymd = [localDate.getFullYear(), String(localDate.getMonth() + 1).padStart(2, '0'),
+      String(localDate.getDate()).padStart(2, '0')].join('-')
+    expect(clicked[0]).toMatch(new RegExp(`^opengym-${ymd}-\\d{4}\\.fit$`))
     const bytes = new Uint8Array(await blobs[0].arrayBuffer())
     expect(String.fromCharCode(...bytes.slice(8, 12))).toBe('.FIT')
     expect(toast).toHaveBeenCalledWith('Saved. Garmin Connect can take it from here.')

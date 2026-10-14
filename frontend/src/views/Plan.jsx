@@ -153,6 +153,7 @@ export default function Plan() {
         { icon: 'note', label: t('Print / Save as PDF'), disabled: !has, onClick: printWholePlan },
         { icon: 'download', label: t('Import a plan file'), onClick: () => fileRef.current?.click() },
         { icon: 'clipboard', label: t('Load starter plan'), onClick: starterPlanSheet },
+        { icon: 'sparkles', label: 'Anime Ascension', sub: 'Character paths and training setup', onClick: () => nav('/anime') },
       ],
     })
   }
