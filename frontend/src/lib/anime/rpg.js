@@ -3,7 +3,7 @@
 // Workout edits/deletions deterministically recalculate awards; a workout ID counts once.
 
 export const PATH = 'saitama'
-const PATH_ROUTINE = /^Saitama · Hero Foundation [ABC]$/
+const PATH_ROUTINE = /^Saitama · Hero Foundation [ABC](?: — (?:Strength|Endurance|Conditioning))?$/
 const safeArray = x => Array.isArray(x) ? x : []
 const safePositive = x => Number.isFinite(Number(x)) && Number(x) > 0
 const isReps = x => Number.isFinite(Number(x?.r)) && Number(x.r) > 0

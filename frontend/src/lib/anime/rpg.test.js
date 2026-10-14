@@ -18,6 +18,13 @@ describe('Anime Ascension Phase 3 RPG', () => {
     expect(animeActiveFields({ routines: [] }, ['missing'], planned)).toEqual({})
     expect(animeActiveFields(app, ['saitamaA'], planned)).toHaveProperty('animeAscension')
   })
+  it('accepts both legacy Saitama titles and new A/B/C training-focus titles', () => {
+    for (const title of ['Saitama · Hero Foundation A — Strength', 'Saitama · Hero Foundation B — Endurance', 'Saitama · Hero Foundation C — Conditioning']) {
+      const current = { ...app, routines: [{ id: 'saitamaA', name: title }] }
+      expect(animeSessionSnapshot(current, ['saitamaA'], planned)).not.toBeNull()
+    }
+    expect(animeSessionSnapshot({ ...app, routines: [{ id: 'saitamaA', name: 'Saitama · Hero Foundation A — Anything' }] }, ['saitamaA'], planned)).toBeNull()
+  })
   it('refuses evidence-less workouts and partial, swapped or excluded workouts', () => {
     expect(isQualifiedAnimeWorkout({ ...wk('a','2026-10-12'), animeAscension: undefined })).toBe(false)
     expect(isQualifiedAnimeWorkout(wk('a','2026-10-12'))).toBe(true)

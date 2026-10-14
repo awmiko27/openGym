@@ -1,77 +1,93 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { buildSaitamaFoundation } from './saitama.js'
+import { buildSaitamaFoundation, saitamaDifficulty, SAITAMA_DAYS } from './saitama.js'
 
 const catalogue = [
-  ['100','Wall Push Up','body weight'],
-  ['101','Bodyweight Squat','body weight'],
-  ['102','Glute Bridge','body weight'],
-  ['103','Dead Bug','body weight'],
-  ['104','Bird Dog','body weight'],
-  ['105','One Arm Dumbbell Row','dumbbell'],
-  ['106','Barbell Back Squat','barbell'],
-].map(([id,n,eq]) => ({id,n,eq}))
-const build = equipment => {
+  ['100', 'Wall Push Up', 'body weight'],
+  ['101', 'Bodyweight Squat', 'body weight'],
+  ['102', 'Glute Bridge', 'body weight'],
+  ['103', 'Dead Bug', 'body weight'],
+  ['104', 'Bird Dog', 'body weight'],
+  ['105', 'One Arm Dumbbell Row', 'dumbbell'],
+  ['106', 'Barbell Back Squat', 'barbell'],
+  ['107', 'Reverse Lunge', 'body weight'],
+  ['108', 'Mountain Climber', 'body weight'],
+  ['109', 'Standing Calf Raise', 'body weight'],
+  ['110', 'Push Up', 'body weight'],
+  ['111', 'Incline Push Up on Bench', 'body weight'],
+].map(([id, n, eq]) => ({ id, n, eq }))
+const build = (equipment, profile = {}) => {
   let i = 0
-  return buildSaitamaFoundation({catalogue, uid:() => `new-${++i}`, equipment,
-    isAvailable: (items, ex) => ex.eq === 'body weight' || items.includes(ex.eq) })
+  return buildSaitamaFoundation({ catalogue, uid: () => `new-${++i}`, equipment, profile,
+    isAvailable: (kit, ex) => kit.includes(ex.eq) || (ex.eq === 'body weight' &&
+      (!ex.n.includes('Bench') || kit.includes('bench'))) })
 }
+const refs = plan => plan.routines.map(r => r.ex.map(x => x.id))
+const shape = plan => plan.routines.map(r => r.ex.map(x => [x.id, x.sets, x.reps]))
 
-test('bodyweight-only produces three playable routines with no dumbbells or barbells', () => {
-  const result = build(['body weight'])
-  assert.equal(result.routines.length, 3)
-  assert.deepEqual(result.schedule.map(s => s.day), [1,3,5])
-  for (const routine of result.routines) {
-    assert.ok(routine.ex.length >= 4)
-    for (const movement of routine.ex) {
-      assert.equal(catalogue.find(x => x.id === movement.id).eq, 'body weight')
-      assert.ok(movement.sets >= 1 && movement.reps >= 1)
-    }
+test('three distinct strength/endurance/conditioning routines retain native openGym schema', () => {
+  const plan = build(['body weight'])
+  assert.deepEqual(plan.schedule.map(x => x.day), [1, 3, 5])
+  assert.deepEqual(SAITAMA_DAYS.map(x => x.focus), ['Strength', 'Endurance', 'Conditioning'])
+  assert.deepEqual(plan.routines.map(r => r.name), [
+    'Saitama · Hero Foundation A — Strength',
+    'Saitama · Hero Foundation B — Endurance',
+    'Saitama · Hero Foundation C — Conditioning',
+  ])
+  assert.notDeepEqual(shape(plan)[0], shape(plan)[1])
+  assert.notDeepEqual(shape(plan)[1], shape(plan)[2])
+  assert.ok(refs(plan)[1].includes('107'))
+  assert.ok(refs(plan)[2].includes('108'))
+  assert.ok(refs(plan)[2].includes('109'))
+  for (const r of plan.routines) {
+    assert.ok(r.ex.length >= 4)
+    assert.equal(new Set(r.ex.map(x => x.id)).size, r.ex.length)
+    assert.ok(r.ex.every(x => x.sets > 0 && x.reps > 0 && x.weight === 0))
   }
 })
 
-test('dumbbells add pulling work only when available', () => {
-  const bw = build(['body weight'])
-  const mixed = build(['body weight','dumbbell'])
-  assert.ok(mixed.routines.every(r => r.ex.some(ex => ex.id === '105')))
-  assert.ok(bw.routines.every(r => r.ex.every(ex => ex.id !== '105')))
+test('only the openGym equipment restriction controls allowed exercises', () => {
+  const filtered = build(['body weight'])
+  const everything = build(undefined)
+  assert.ok(filtered.routines.every(r => r.ex.every(x => x.id !== '105')))
+  assert.ok(everything.routines[0].ex.some(x => x.id === '105'))
+  const withDumbbells = build(['dumbbell'])
+  assert.ok(withDumbbells.routines[0].ex.some(x => x.id === '105'))
+  assert.ok(build(['body weight']).routines.every(r => r.ex.every(x => x.id !== '111')))
 })
 
-test('without a configured equipment profile, the prototype stays bodyweight-only', () => {
-  const plan = build()
-  assert.ok(plan.routines.every(r => r.ex.every(ex => ex.id !== '105')))
+test('experience and goal adjust actual volumes without excessive sets/reps', () => {
+  const beginner = build(undefined, { experience: 'beginner', goal: 'general', ageYears: 25 })
+  const advanced = build(undefined, { experience: 'advanced', goal: 'general', ageYears: 25 })
+  const strength = build(undefined, { experience: 'intermediate', goal: 'strength', ageYears: 25 })
+  const endurance = build(undefined, { experience: 'intermediate', goal: 'endurance', ageYears: 25 })
+  assert.ok(advanced.routines[0].ex[0].sets > beginner.routines[0].ex[0].sets)
+  assert.ok(advanced.routines[0].ex[0].reps > beginner.routines[0].ex[0].reps)
+  assert.ok(endurance.routines[1].ex[0].reps > strength.routines[1].ex[0].reps)
+  assert.ok(strength.routines[0].ex[0].sets >= endurance.routines[0].ex[0].sets)
+  assert.ok(shape(advanced).flat().every(([, sets, reps]) => sets <= 4 && reps <= 18))
 })
 
-test('missing required exercise fails closed, not unknown IDs', () => {
-  const result = buildSaitamaFoundation({catalogue: catalogue.filter(ex => ex.id !== '100'), uid:() => 'id'})
-  assert.equal(result, null)
+test('higher age caps advanced volume conservatively without changing experience setting', () => {
+  assert.equal(saitamaDifficulty({ experience: 'advanced', ageYears: 74 }).tier, 1)
+  assert.equal(saitamaDifficulty({ experience: 'advanced', ageYears: 40 }).tier, 2)
+  const older = build(undefined, { experience: 'advanced', ageYears: 75 })
+  const intermediate = build(undefined, { experience: 'intermediate', ageYears: 40 })
+  assert.deepEqual(shape(older), shape(intermediate))
 })
 
-test('all three generated routines have unique IDs', () => {
-  const ids = build().routines.map(r => r.id)
-  assert.equal(new Set(ids).size, 3)
+test('fails closed for missing mandatory movements and never invents exercise IDs', () => {
+  const invalid = buildSaitamaFoundation({ catalogue: catalogue.filter(x => x.id !== '101'), uid: () => 'x' })
+  assert.equal(invalid, null)
+  const plan = build([])
+  assert.ok(plan)
+  for (const r of plan.routines) for (const ex of r.ex) assert.ok(catalogue.find(x => x.id === ex.id))
+  assert.equal(new Set(plan.routines.map(r => r.id)).size, 3)
 })
 
-// Regression: catalogue entries marked "body weight" can still need accessories.
-test('rejects a bodyweight push-up that requires an unavailable bench', () => {
-  const benchOnly = [
-    ...catalogue.filter(ex => ex.id !== '100'),
-    { id: '009', n: 'Incline Push Up on Bench', eq: 'body weight' },
-  ]
-  const noBench = buildSaitamaFoundation({
-    catalogue: benchOnly, uid: () => 'x', equipment: [],
-    isAvailable: (_kit, ex) => ex.id !== '009',
-  })
-  assert.equal(noBench, null)
-})
-
-test('no unlisted equipment is used by a generated routine', () => {
-  for (const equipment of [[], ['dumbbell']]) {
-    const plan = build(equipment)
-    assert.ok(plan)
-    for (const r of plan.routines) for (const ex of r.ex) {
-      const entry = catalogue.find(item=>item.id===ex.id)
-      assert.ok(entry.eq==='body weight' || equipment.includes(entry.eq))
-    }
-  }
+test('optional conditioning movements missing from a minimal catalogue do not invalidate the plan', () => {
+  const minimal = catalogue.filter(x => ['100', '101', '102', '103'].includes(x.id))
+  const result = buildSaitamaFoundation({ catalogue: minimal, uid: (() => { let i = 0; return () => '' + ++i })() })
+  assert.ok(result)
+  assert.ok(result.routines.every(r => r.ex.length === 4))
 })

@@ -124,10 +124,10 @@ const fitRoutines = (routines, equipment) => {
 // Fresh routines plus the weekdays to put them on, or null for an unknown id — a caller that
 // treats null as "change nothing" can never half-apply a plan. With an equipment list the
 // plan is fitted to it first, and `fit` reports how many exercises that swapped or dropped.
-export const buildStarterPlan = (id, equipment) => {
+export const buildStarterPlan = (id, equipment, animeProfile) => {
 if (id === 'saitama-foundation') return buildSaitamaFoundation({
   catalogue: Object.values(EXIDX), uid, equipment,
-  isAvailable: eqAvailable,
+  isAvailable: eqAvailable, profile: animeProfile,
 })
   const plan = PLANS[id]
   if (!plan) return null

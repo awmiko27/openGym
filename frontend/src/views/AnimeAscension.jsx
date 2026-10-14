@@ -40,7 +40,7 @@ export default function AnimeAscension() {
       // Respect openGym's own equipment-filter toggle and active profile.
       // When filtering is off, activeProfile returns null (all equipment),
       // so the starter plan loads as written without imposing restrictions.
-      const loaded = loadStarterPlan('saitama-foundation', activeProfile(useStore.getState().S))
+      const loaded = loadStarterPlan('saitama-foundation', activeProfile(useStore.getState().S), result.value)
       if (!loaded) {
         setLoadingError('No suitable workout could be built from the available exercise catalog and equipment. Nothing was changed.')
         return
@@ -76,7 +76,7 @@ export default function AnimeAscension() {
     </div>
     {page === 'setup' ? <form className="aa-section aa-form" onSubmit={e => { e.preventDefault(); review() }}>
       <h2>Your starting profile</h2>
-      <p className="aa-note">Age and optional height are saved for your Anime Ascension profile. The Saitama program is still a fixed beginner foundation plan; these values do not yet adjust the workout.</p>
+      <p className="aa-note">Age and optional height are saved for your Anime Ascension profile. Experience and goal adjust your Saitama starting sets and repetitions; age 70+ caps advanced volume. Height is informational only. Equipment continues to follow openGym Settings.</p>
       <div className="aa-fields">
         <label>Age (18+, required)<input type="number" min="18" max="100" step="1" value={draft.ageYears} onChange={e => set('ageYears', e.target.value)} /></label>
         <label>Height in cm (optional)<input type="number" min="100" max="250" step="0.1" value={draft.heightCm} onChange={e => set('heightCm', e.target.value)} /></label>
@@ -90,7 +90,7 @@ export default function AnimeAscension() {
     </form> : <section className="aa-section">
       <h2>Review before loading</h2>
       <p><strong>Saitama · Hero Foundation</strong></p>
-      <p>Three beginner sessions: Monday, Wednesday, Friday. The existing openGym trainer, rest timer, and exercise demonstrations remain in use.</p>
+      <p>A — Strength (Monday): controlled push, squat and core work. B — Endurance (Wednesday): higher repetitions and optional lunges. C — Conditioning (Friday): low-impact full-body repetitions. Experience and training goal adjust starting volume; exercises follow openGym equipment Settings. Existing demos, logging and XP checks remain in use.</p>
       <p className="aa-warning">Loading this plan reassigns Monday, Wednesday, and Friday in your current fixed-week schedule. Existing workout history and routine records are retained. An active session will not be replaced.</p>
       {loadingError && <div role="alert" className="aa-errors">{loadingError}</div>}
       <div className="aa-actions">
