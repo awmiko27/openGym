@@ -1,10 +1,11 @@
 // Phase 5A — opt-in, history-derived training phases. No parallel workout log.
 import { isQualifiedAnimeWorkout } from './rpg.js'
+import { CANON_PROGRAMS, characterSessionCount } from './canon-programs.js'
 
 export const TRAINING_ARCS = Object.freeze({
-  saitama: { weeks: 9, phases: ['Hero Foundation', 'Hero Discipline', 'Hero Mastery'], split: [3, 3, 3] },
-  goku: { weeks: 10, phases: ['Earth Training', 'Saiyan Strength'], split: [5, 5] },
-  jinwoo: { weeks: 9, phases: ['E-Rank Hunter', 'Dungeon Conqueror', 'Shadow Ascension'], split: [3, 3, 3] },
+  saitama: { weeks: 9, phases: CANON_PROGRAMS.saitama.phaseLabels, split: [3, 3, 3] },
+  goku: { weeks: 10, phases: CANON_PROGRAMS.goku.phaseLabels, split: [5, 5] },
+  jinwoo: { weeks: 9, phases: CANON_PROGRAMS.jinwoo.phaseLabels, split: [3, 3, 3] },
 })
 
 export function localDay(now = new Date()) {
@@ -13,11 +14,14 @@ export function localDay(now = new Date()) {
 
 export const startTrainingArc = (at = Date.now()) => ({ v: 1, startedAt: at, loadedWeek: 0 })
 
-// OpenGym saves ISO local day and completion timestamp. Require 48h-equivalent
-// *calendar* separation between consecutive credited sessions. This does not
-// assert physiological recovery; it prevents accidentally grinding out a week.
-const dayNumber = day => /^\d{4}-\d{2}-\d{2}$/.test(day || '') &&
-  !Number.isNaN(Date.parse(`${day}T12:00:00Z`)) ? Math.floor(Date.parse(`${day}T12:00:00Z`) / 86400000) : null
+// openGym saves a local ISO workout date and completion timestamp. We validate
+// dates before comparing them; different split sessions may be on adjacent days.
+const dayNumber = day => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return null
+  const ms = Date.parse(`${day}T12:00:00Z`)
+  return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === day
+    ? Math.floor(ms / 86400000) : null
+}
 
 export function qualifyingAfter(workouts, path, startedAt) {
   if (!Number.isFinite(startedAt) || startedAt <= 0) return []
@@ -35,33 +39,37 @@ export function qualifyingAfter(workouts, path, startedAt) {
 export function deriveTrainingArc(workouts, path, program) {
   const design = TRAINING_ARCS[path]
   if (!design) return null
+  const required = characterSessionCount(path)
   if (program?.v !== 1 || !Number.isFinite(program.startedAt))
-    return { path, started: false, week: 1, loadedWeek: 0, phase: design.phases[0], completed: false, done: 0, required: 3, totalWeeks: design.weeks }
+    return { path, started: false, week: 1, loadedWeek: 0, phase: design.phases[0], completed: false, done: 0, required, totalWeeks: design.weeks }
   const eligible = qualifyingAfter(workouts, path, program.startedAt)
   const credited = []
-  let lastDay = -Infinity
   let weekSlots = new Set()
+  let weekFirstDay = null
   const usedDays = new Set()
   let weekDone = 0
   for (const workout of eligible) {
     const day = dayNumber(workout.d)
     const slot = workout.animeAscension?.slot
-    // Require a separate day and at least one intervening day for recovery.
-    // Each weekly set has one A, B, C; legacy sessions without a slot may count.
-    const expectedWeek = Math.floor(credited.length / 3) + 1
+    // The character's split may put different muscle groups on adjacent days.
+    // Require separate dates and all distinct prescribed slots, not 48h between
+    // every session (which made a 5-day training week mathematically impossible).
+    const expectedWeek = Math.floor(credited.length / required) + 1
     // A new phase cannot be credited by repeating an older week's easier
     // prescription: the user has to load the newly unlocked native plan.
     if (workout.animeAscension?.trainingWeek !== expectedWeek ||
-        usedDays.has(workout.d) || day - lastDay < 2 ||
-        (slot && !['A','B','C'].includes(slot)) || (slot && weekSlots.has(slot))) continue
+        usedDays.has(workout.d) ||
+        !CANON_PROGRAMS[path].days.some(d => d.slot === slot) || weekSlots.has(slot) ||
+        // For 5-day weeks, ensure at least one unscheduled recovery date.
+        (required === 5 && weekSlots.size === 4 && weekFirstDay !== null && day - weekFirstDay < 5)) continue
     credited.push(workout)
     usedDays.add(workout.d)
-    lastDay = day
-    if (slot) weekSlots.add(slot)
-    if (++weekDone === 3) { weekDone = 0; weekSlots = new Set() }
-    if (credited.length === design.weeks * 3) break
+    if (weekFirstDay === null) weekFirstDay = day
+    weekSlots.add(slot)
+    if (++weekDone === required) { weekDone = 0; weekSlots = new Set(); weekFirstDay = null }
+    if (credited.length === design.weeks * required) break
   }
-  const completedWeeks = Math.floor(credited.length / 3)
+  const completedWeeks = Math.floor(credited.length / required)
   const completed = completedWeeks >= design.weeks
   const week = Math.min(design.weeks, completedWeeks + 1)
   const startWeek = design.split.reduce((acc, length, index) =>
@@ -72,7 +80,7 @@ export function deriveTrainingArc(workouts, path, program) {
   return {
     path, started: true, startedAt: program.startedAt, week, loadedWeek: Number(program.loadedWeek) || 0,
     phase: design.phases[startWeek.phaseIndex], phaseIndex: startWeek.phaseIndex,
-    weekInPhase: week - startWeek.offset, completed, done: weekDone, required: 3,
+    weekInPhase: week - startWeek.offset, completed, done: weekDone, required,
     creditedIds: credited.map(w => String(w.id)), completedWeeks, totalWeeks: design.weeks,
     // Avoid silently replacing a schedule while the user is in an active workout.
     needsLoad: !completed && week !== Number(program.loadedWeek),

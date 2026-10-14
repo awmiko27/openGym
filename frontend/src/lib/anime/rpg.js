@@ -8,10 +8,13 @@ export const ANIME_RPG_PATHS = Object.freeze({
   goku: { title: 'Goku · Saiyan Training', quest: 'Saiyan', ranks: ['Saiyan Trainee', 'Z Fighter', 'Saiyan Elite'], arcs: ['Earth Training', 'Gravity Training'] },
   jinwoo: { title: 'Sung Jinwoo · Hunter Training', quest: 'Hunter', ranks: ['E-Rank Hunter', 'D-Rank Hunter', 'C-Rank Hunter'], arcs: ['Hunter Initiation', 'Dungeon Training'] },
 })
+// Exact routine name patterns also accept legacy Phase 3/4/5 three-day plans.
+// No arbitrary renamed workouts receive verified Anime Ascension XP.
+const weekSuffix = '(?: · Week (?:[2-9]|10))?'
 const PATH_ROUTINES = {
-  saitama: /^Saitama · Hero Foundation [ABC](?: — (?:Strength|Endurance|Conditioning))?(?: · Week (?:[2-9]))?$/,
-  goku: /^Goku · Saiyan Foundation [ABC] — (?:Strength|Power|Conditioning)(?: · Week (?:[2-9]|10))?$/,
-  jinwoo: /^Sung Jinwoo · Hunter Foundation [ABC] — (?:Strength|Agility|Endurance)(?: · Week (?:[2-9]))?$/,
+  saitama: new RegExp(`^Saitama · Hero Foundation (?:[ABC](?: — (?:Strength|Endurance|Conditioning))?|A — Push-up Progression|B — Squats & Core|C — Run Preparation|D — Hero Circuit|E — Endurance Check)${weekSuffix}$`),
+  goku: new RegExp(`^Goku · Saiyan Foundation (?:[ABC] — (?:Strength|Power|Conditioning)|A — Turtle School Conditioning|B — Upper-Body Strength|C — Legs & Power Foundation|D — Martial Arts Conditioning)${weekSuffix}$`),
+  jinwoo: new RegExp(`^Sung Jinwoo · Hunter Foundation (?:[ABC] — (?:Strength|Agility|Endurance)|A — Quest: Push-ups|B — Quest: Squats & Core|C — Hunter Agility|D — Dungeon Strength|E — System Endurance)${weekSuffix}$`),
 }
 const isAnimePath = path => Object.hasOwn(PATH_ROUTINES, path)
 
@@ -35,7 +38,7 @@ export function animeSessionSnapshot(state, routineIds, entries) {
     e.noProg === true || e.sets.some(s => !isReps(s) || s?.warmup === true || s?.sides))) return null
   return {
     v: 1, path, routineId: ids[0],
-    slot: / Foundation ([ABC])(?: —|$)/.exec(routine.name)?.[1] || null,
+    slot: / Foundation ([A-E])(?: —|$)/.exec(routine.name)?.[1] || null,
     trainingWeek: Number(state?.animeAscension?.programs?.[path]?.loadedWeek) || 1,
     // Source prescription, not rewritten by subsequent exercise swaps or plan edits.
     requirements: es.map(e => ({ id: e.id, reps: e.sets.map(s => Number(s.r)) })),

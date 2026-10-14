@@ -1,4 +1,5 @@
 import { trainingPrescriptionDelta } from './training.js'
+import { CANON_PROGRAMS } from './canon-programs.js'
 // Anime Ascension / Saitama: three distinct, repeatable native openGym sessions.
 // AGPL-3.0-or-later. Reuse the catalogue and the caller's openGym equipment policy.
 // A = strength; B = muscular endurance; C = low-impact conditioning.
@@ -17,6 +18,7 @@ const slots = {
   bridge: [/\bglute bridge\b/, /\bhip bridge\b/],
   core: [/\bdead bug\b/, /\bbird dog\b/],
   alternateCore: [/\bbird dog\b/, /\bdead bug\b/],
+  situp: [/^sit ?up$/, /\bsit ?up\b/, /\bcrunch\b/],
   row: [/\bone arm dumbbell row\b/, /\bsingle arm dumbbell row\b/, /\bbent over dumbbell row\b/],
   lunge: [/\breverse lunge\b/, /\bwalking lunge\b/, /^lunge$/],
   mountainClimber: [/^mountain climber$/, /\bmountain climber\b/],
@@ -35,11 +37,7 @@ function findExercise(catalogue, patterns, eligible, equipmentType = bodyweight,
   return null
 }
 
-export const SAITAMA_DAYS = Object.freeze([
-  { key: 'a', focus: 'Strength', day: 1 },
-  { key: 'b', focus: 'Endurance', day: 3 },
-  { key: 'c', focus: 'Conditioning', day: 5 },
-])
+export const SAITAMA_DAYS = CANON_PROGRAMS.saitama.days
 
 /**
  * Experience drives volume, goal biases reps. Age is only a conservative volume
@@ -87,6 +85,7 @@ export function buildSaitamaFoundation({ catalogue, uid, equipment, isAvailable 
   // Without four safe catalogue movements, do not create an unusable partial plan.
   if (!push || !squat || !bridge || !core) return null
   const row = choose('row', dumbbell)
+  const situp = choose('situp') || core
   const alternateCore = choose('alternateCore', bodyweight, new Set([core.id])) || core
   const lunge = choose('lunge', bodyweight, new Set([squat.id]))
   const climber = choose('mountainClimber')
@@ -105,16 +104,19 @@ export function buildSaitamaFoundation({ catalogue, uid, equipment, isAvailable 
         }),
     }
   }
-  const routines = [
-    routine('a', 'Strength', 'strength', [
-      [push, 2, 6], [squat, 2, 8], [row, 2, 8], [bridge, 2, 8], [core, 2, 6],
-    ]),
-    routine('b', 'Endurance', 'endurance', [
-      [squat, 2, 12], [lunge, 2, 8], [push, 2, 9], [alternateCore, 2, 10], [bridge, 2, 12],
-    ]),
-    routine('c', 'Conditioning', 'conditioning', [
-      [bridge, 2, 10], [climber, 2, 10], [squat, 2, 10], [calf, 2, 12], [push, 2, 7], [core, 2, 8],
-    ]),
+  // These are five distinct adaptations of the famous 100/100/100/10 km
+  // benchmark, NOT that fictional daily prescription. Aerobic preparation is
+  // shown in coaching guidance until native cardio proof is implemented.
+  const blueprints = [
+    [[push, 3, 6], [squat, 2, 8], [core, 2, 8], [bridge, 2, 8]],
+    [[squat, 3, 10], [situp, 2, 8], [lunge, 2, 8], [bridge, 2, 10]],
+    [[climber, 2, 10], [calf, 2, 12], [bridge, 2, 10], [alternateCore, 2, 8], [squat, 2, 8]],
+    [[push, 2, 8], [squat, 2, 10], [situp, 2, 8], [climber, 2, 10]],
+    [[squat, 2, 12], [push, 2, 9], [situp, 2, 10], [bridge, 2, 12], [row, 2, 8]],
   ]
+  const routines = blueprints.map((list, i) => {
+    const session = SAITAMA_DAYS[i]
+    return routine(session.slot.toLowerCase(), session.focus, i === 0 ? 'strength' : 'endurance', list)
+  })
   return { routines, schedule: SAITAMA_DAYS.map(({ day }, index) => ({ day, routineId: routines[index].id })) }
 }

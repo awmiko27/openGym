@@ -1,0 +1,117 @@
+/* Phase 5 UX: scoped to the Anime Ascension route; no changes to openGym UI. */
+.aa-redesign { padding-bottom: 36px; }
+.aa-redesign h1, .aa-redesign h2, .aa-redesign h3, .aa-redesign p { margin-top: 0; }
+.aa-redesign-header { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin: 20px 0; }
+.aa-redesign-header h1 { font-size: clamp(24px, 4vw, 31px); line-height: 1.2; margin-bottom: 5px; }
+.aa-redesign-header p:not(.aa-kicker) { color: var(--label-2); font-size: 13px; margin: 0; }
+.aa-redesign-header .btn { flex: none; }
+.aa-redesign-characters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 14px; }
+.aa-redesign-character { display: grid; justify-items: center; gap: 3px; text-align: center; border: 1px solid var(--sep); border-radius: 14px; padding: 13px 7px; background: var(--surface-2); color: var(--label); cursor: pointer; font: inherit; min-width: 0; }
+.aa-redesign-character.is-selected { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 8%, var(--surface-2)); box-shadow: inset 0 0 0 1px var(--acc); }
+.aa-redesign-character strong { font-size: 13px; }
+.aa-redesign-character small { font-size: 11px; color: var(--label-2); }
+.aa-redesign-avatar { font-size: 23px; line-height: 1.5; }
+.aa-redesign-feature { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 23px; background: linear-gradient(120deg, color-mix(in srgb, var(--acc) 12%, var(--surface-2)), var(--surface-2) 75%); border: 1px solid var(--sep); border-radius: 17px; }
+.aa-redesign-feature h2 { font-size: 23px; margin: 5px 0 8px; }
+.aa-redesign-feature p { font-size: 13px; line-height: 1.5; color: var(--label-2); margin-bottom: 12px; max-width: 45ch; }
+.aa-redesign-eyebrow { display: block; color: var(--acc); font-weight: 750; letter-spacing: .08em; font-size: 10px; text-transform: uppercase; }
+.aa-redesign-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.aa-redesign-chips span { border: 1px solid var(--sep); border-radius: 100px; padding: 5px 9px; font-size: 11px; }
+.aa-redesign-primary-actions { display: grid; gap: 9px; flex: 0 0 188px; }
+.aa-redesign-primary-actions .btn { width: 100%; white-space: normal; }
+.aa-redesign-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 13px 0; }
+.aa-redesign-mini { border: 1px solid var(--sep); border-radius: 14px; padding: 17px; background: var(--surface-2); min-width: 0; }
+.aa-redesign-mini-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 7px; }
+.aa-redesign-mini h3 { font-size: 15px; margin: 0; }
+.aa-redesign-mini-head span { font-size: 11px; color: var(--label-2); }
+.aa-redesign-mini p { font-size: 12px; line-height: 1.5; color: var(--label-2); min-height: 37px; margin: 10px 0 5px; }
+.aa-redesign-mini progress { display: block; width: 100%; height: 7px; accent-color: var(--acc); }
+.aa-redesign-mini small { font-size: 11px; color: var(--label-2); display: block; margin-top: 7px; }
+.aa-redesign-text-action { font: inherit; display: inline-block; border: 0; background: none; color: var(--acc); cursor: pointer; padding: 9px 0 0; margin-top: 7px; font-weight: 700; font-size: 12px; }
+.aa-redesign-info { border: 1px solid var(--sep); border-radius: 12px; padding: 13px 16px; background: var(--surface-2); font-size: 12px; }
+.aa-redesign-info summary { cursor: pointer; font-weight: 650; }
+.aa-redesign-info p { color: var(--label-2); line-height: 1.55; margin: 11px 0 0; }
+.aa-redesign-setup { margin-top: 18px; }
+.aa-redesign-setup .aa-redesign-eyebrow { margin-top: 20px; }
+.aa-redesign-setup h2 { margin: 7px 0 9px; }
+.aa-redesign-review { margin-top: 16px; }
+.aa-redesign-heading { margin-bottom: 18px; }
+.aa-redesign-heading .aa-redesign-eyebrow { margin-top: 18px; }
+.aa-redesign-heading h2 { margin: 6px 0; font-size: 24px; }
+.aa-redesign-heading p { font-size: 13px; line-height: 1.5; color: var(--label-2); }
+.aa-redesign-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 0 0 20px; }
+.aa-redesign-metrics > div { border: 1px solid var(--sep); background: var(--surface-2); border-radius: 12px; text-align: center; padding: 14px 8px; display: grid; gap: 5px; }
+.aa-redesign-metrics strong { font-size: 22px; line-height: 1; }
+.aa-redesign-metrics span { color: var(--label-2); font-size: 11px; }
+.aa-redesign-week-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.aa-redesign-week-top h3 { margin: 0; font-size: 16px; }
+.aa-redesign-week-top > span { color: var(--label-2); font-size: 12px; text-transform: capitalize; }
+.aa-redesign-days { display: grid; gap: 8px; }
+.aa-redesign-day { border: 1px solid var(--sep); background: var(--surface-2); border-radius: 13px; overflow: hidden; }
+.aa-redesign-day.is-open { border-color: var(--acc); }
+.aa-redesign-day-toggle { border: 0; width: 100%; padding: 13px; display: flex; align-items: center; gap: 11px; background: transparent; color: var(--label); text-align: start; font: inherit; cursor: pointer; }
+.aa-redesign-day-index { border-radius: 9px; background: var(--surface-3); display: grid; place-items: center; width: 35px; height: 35px; font-weight: 800; flex: none; }
+.aa-redesign-day-label { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.aa-redesign-day-label strong { font-size: 13px; }
+.aa-redesign-day-label small { color: var(--label-2); font-size: 11px; }
+.aa-redesign-open-label { font-size: 11px; font-weight: 600; color: var(--acc); white-space: nowrap; }
+.aa-redesign-open-label span { font-size: 16px; margin-left: 2px; }
+.aa-redesign-exercise-list { border-top: 1px solid var(--sep); padding: 1px 15px 5px; }
+.aa-redesign-exercise { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--sep); }
+.aa-redesign-exercise:last-child { border-bottom: 0; }
+.aa-redesign-exercise-number { color: var(--label-2); font-size: 12px; width: 18px; flex: none; }
+.aa-redesign-exercise-copy { display: grid; gap: 3px; flex: 1; min-width: 0; }
+.aa-redesign-exercise-copy strong { font-size: 12px; font-weight: 650; }
+.aa-redesign-exercise-copy small { color: var(--label-2); font-size: 11px; }
+.aa-redesign-prescription { font-size: 15px; font-weight: 700; display: grid; text-align: end; gap: 3px; white-space: nowrap; }
+.aa-redesign-prescription small { color: var(--label-2); font-weight: 400; font-size: 10px; }
+.aa-redesign-rest { display: flex; gap: 10px; justify-content: space-between; align-items: center; padding: 16px 3px; font-size: 12px; }
+.aa-redesign-rest span { color: var(--label-2); }
+.aa-redesign-review .aa-redesign-info { margin-bottom: 16px; }
+.aa-redesign-caution { border-left: 3px solid var(--orange); background: var(--surface-2); padding: 11px; border-radius: 4px; color: var(--label-2); font-size: 12px; line-height: 1.55; }
+.aa-redesign-review-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; margin-top: 18px; }
+.aa-redesign-empty { padding: 20px; border: 1px solid var(--sep); border-radius: 13px; background: var(--surface-2); }
+.aa-redesign-empty p { color: var(--label-2); margin: 8px 0 0; }
+.aa-redesign :is(button, summary):focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+@media(max-width: 620px) { .aa-redesign-feature { display: grid; padding: 18px; } .aa-redesign-primary-actions { grid-template-columns: 1fr 1fr; } .aa-redesign-characters { gap: 6px; } .aa-redesign-character { padding: 12px 3px; } .aa-redesign-character strong { font-size: 12px; } .aa-redesign-character small { font-size: 10px; } }
+@media(max-width: 440px) { .aa-redesign-header { align-items: center; } .aa-redesign-header .btn { font-size: 11px; } .aa-redesign-overview-grid { grid-template-columns: 1fr; } .aa-redesign-primary-actions { grid-template-columns: 1fr; } .aa-redesign-review-actions .btn { flex: 1 1 auto; } .aa-redesign-open-label { font-size: 0; } .aa-redesign-open-label span { font-size: 19px; } .aa-redesign-rest { display: grid; } }
+@media(prefers-reduced-motion: reduce) { .aa-redesign *, .aa-redesign *::before, .aa-redesign *::after { animation: none !important; transition: none !important; } }
+/* Phase 5 UI revision 2: distinct training progression and challenge ladder. */
+.aa-arc-view, .aa-challenge-view { margin-top: 14px; }
+.aa-arc-view > h2, .aa-challenge-view > h2 { margin: 6px 0 8px; font-size: 23px; }
+.aa-arc-view > h3 { margin: 23px 0 11px; font-size: 15px; }
+.aa-arc-current { border: 1px solid var(--sep); border-radius: 15px; padding: 19px; background: var(--surface-2); margin-top: 17px; }
+.aa-arc-current .aa-rpg-bar { display: block; width: 100%; margin: 13px 0 6px; }
+.aa-arc-current .btn { margin-top: 10px; }
+.aa-arc-phases { display: grid; gap: 8px; }
+.aa-arc-phase { display: flex; align-items: center; gap: 13px; padding: 13px; border: 1px solid var(--sep); border-radius: 12px; background: var(--surface-2); }
+.aa-arc-phase.is-current { border-color: var(--acc); }
+.aa-arc-phase-index { display: grid; place-items: center; border-radius: 9px; width: 34px; height: 34px; background: var(--surface-3); font-weight: 750; flex: none; }
+.aa-arc-phase > div { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.aa-arc-phase strong, .aa-arc-session strong { font-size: 13px; }
+.aa-arc-phase small, .aa-arc-session small, .aa-arc-phase-status { font-size: 11px; color: var(--label-2); }
+.aa-arc-sessions { display: grid; gap: 7px; margin-bottom: 19px; }
+.aa-arc-session { display: flex; align-items: center; gap: 9px; padding: 11px; border-bottom: 1px solid var(--sep); }
+.aa-arc-session > span { display: grid; place-items: center; background: var(--surface-3); border-radius: 7px; padding: 7px; color: var(--label-2); min-width: 43px; font-size: 11px; }
+.aa-arc-session strong { flex: 1; }
+.aa-challenge-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 17px 0; }
+.aa-challenge-overview > div { display: grid; gap: 5px; padding: 15px; border: 1px solid var(--sep); border-radius: 12px; background: var(--surface-2); }
+.aa-challenge-overview strong { font-size: 22px; }
+.aa-challenge-overview span { font-size: 11px; color: var(--label-2); }
+.aa-challenge-ladder { display: grid; gap: 10px; margin: 15px 0 17px; }
+.aa-challenge-tier { border: 1px solid var(--sep); background: var(--surface-2); border-radius: 14px; padding: 17px; }
+.aa-challenge-tier.is-active { border-color: var(--acc); }
+.aa-challenge-tier.is-locked { opacity: .74; }
+.aa-challenge-tier-top { display: flex; align-items: center; gap: 11px; }
+.aa-challenge-tier-index { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: var(--surface-3); font-size: 15px; font-weight: 800; flex: none; }
+.aa-challenge-tier-heading { display: grid; gap: 3px; flex: 1; min-width: 0; }
+.aa-challenge-tier-heading small { font-size: 10px; color: var(--label-2); text-transform: uppercase; letter-spacing: .03em; }
+.aa-challenge-tier h3 { font-size: 15px; margin: 0; }
+.aa-challenge-tier-reward { color: var(--acc); white-space: nowrap; font-size: 13px; }
+.aa-challenge-tier .aa-note { font-size: 12px; line-height: 1.5; margin: 10px 0; }
+.aa-challenge-tier .aa-rpg-bar { display: block; width: 100%; margin: 14px 0 5px; }
+.aa-challenge-tier .btn { margin-top: 9px; }
+.aa-challenge-success { font-size: 12px; font-weight: 700; margin: 10px 0 0; }
+.aa-challenge-status { font-size: 12px; font-weight: 750; color: var(--acc); }
+.aa-challenge-lock-message { padding: 10px; border-radius: 9px; background: var(--surface-3); }
+@media (max-width: 440px) { .aa-arc-phase { gap: 8px; padding: 11px; } .aa-arc-phase-status { max-width: 64px; text-align: right; } .aa-challenge-tier { padding: 13px; } .aa-challenge-tier-top { gap: 8px; } }

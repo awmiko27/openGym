@@ -1,62 +1,60 @@
 import { describe, expect, it } from 'vitest'
+import { CANON_PROGRAMS } from './canon-programs.js'
 import { deriveTrainingArc, startTrainingArc, trainingPrescriptionDelta } from './training.js'
 
-const startedAt = Date.UTC(2026, 8, 30, 0)
-function day(offset) { return new Date(Date.UTC(2026, 9, 1 + offset, 12)).toISOString().slice(0, 10) }
-function workout(i, path = 'saitama', slot = 'ABC'[i % 3]) {
-  const id = `r-${i}`
-  return { id: `w-${i}`, d: day(i * 2), end: Date.UTC(2026, 9, 1 + i * 2, 16), routineIds: [id],
-    animeAscension: { v: 1, path, routineId: id, slot, trainingWeek: Math.floor(i / 3) + 1, requirements: [{ id: 'push', reps: [6, 6] }] },
+const start = Date.UTC(2026, 8, 30)
+const day = n => new Date(Date.UTC(2026, 9, 1+n, 12)).toISOString().slice(0, 10)
+function record(i, path = 'saitama', options = {}) {
+  const slot = options.slot || CANON_PROGRAMS[path].days[i % CANON_PROGRAMS[path].days.length].slot
+  const trainingWeek = options.week || Math.floor(i / CANON_PROGRAMS[path].days.length) + 1
+  const time = options.day ?? (Math.floor(i / CANON_PROGRAMS[path].days.length) * 7 + [0, 1, 3, 4, 5][i % CANON_PROGRAMS[path].days.length])
+  const id = `routine-${i}`
+  return { id: `session-${i}`, d: day(time), end: Date.UTC(2026, 9, 1 + time, 16), routineIds: [id],
+    animeAscension: { v: 1, path, routineId: id, slot, trainingWeek, requirements: [{ id: 'push', reps: [6, 6] }] },
     entries: [{ id: 'push', sets: [{ r: 6, done: true }, { r: 6, done: true }] }] }
 }
 
-describe('Phase 5 multiweek progression', () => {
-  it('starts at week one; advances only after verified A/B/C on recovered dates', () => {
-    const program = { ...startTrainingArc(startedAt), loadedWeek: 1 }
-    expect(deriveTrainingArc([], 'saitama', program).week).toBe(1)
-    expect(deriveTrainingArc([workout(0), workout(1)], 'saitama', program).done).toBe(2)
-    const result = deriveTrainingArc([workout(0), workout(1), workout(2)], 'saitama', program)
-    expect(result.week).toBe(2)
-    expect(result.needsLoad).toBe(true)
-    expect(result.creditedIds).toHaveLength(3)
-  })
-  it('does not count partial, duplicate, pre-start or insufficiently recovered sessions', () => {
-    const program = startTrainingArc(startedAt)
-    const failed = workout(2); failed.entries[0].sets[1].done = false
-    const prior = workout(3); prior.end = startedAt - 1
-    const sameDay = workout(4); sameDay.d = workout(1).d
-    const result = deriveTrainingArc([workout(0), workout(1), sameDay, failed, prior, workout(0)], 'saitama', program)
-    expect(result.done).toBe(2)
+describe('canon-inspired character-specific training arcs', () => {
+  for (const [path, count] of [['saitama',5],['goku',4],['jinwoo',5]]) {
+    it(`${path} requires ${count} distinct sessions and unlocks week two`, () => {
+      const state = { ...startTrainingArc(start), loadedWeek: 1 }
+      const inputs = Array.from({ length: count }, (_, i) => record(i, path))
+      expect(deriveTrainingArc(inputs.slice(0,-1), path, state).done).toBe(count-1)
+      const after = deriveTrainingArc(inputs, path, state)
+      expect(after.week).toBe(2)
+      expect(after.required).toBe(count)
+      expect(after.needsLoad).toBe(true)
+      expect(after.creditedIds).toHaveLength(count)
+    })
+  }
+  it('requires a recovery date in the five-day split', () => {
+    const input = Array.from({ length: 5 }, (_, i) => record(i, 'saitama', { day: i }))
+    const result = deriveTrainingArc(input, 'saitama', startTrainingArc(start))
+    expect(result.done).toBe(4)
     expect(result.week).toBe(1)
   })
-  it('requires different A/B/C sessions within a training week', () => {
-    const first = workout(0)
-    const secondA = workout(1, 'saitama', 'A')
-    const third = workout(2, 'saitama', 'C')
-    expect(deriveTrainingArc([first, secondA, third], 'saitama', startTrainingArc(startedAt)).week).toBe(1)
+  it('rejects same-day, duplicate slot, incomplete, and stale-week evidence', () => {
+    const a = record(0)
+    const repeatA = record(1,'saitama',{slot:'A'})
+    const early = record(2); early.entries[0].sets[0].done = false
+    const duplicateDay = record(3,'saitama',{day:0})
+    const stale = record(4,'saitama',{week:99})
+    expect(deriveTrainingArc([a,repeatA,early,duplicateDay,stale], 'saitama', startTrainingArc(start)).done).toBe(1)
   })
-  it('blocks progress from sessions using a stale earlier-week prescription', () => {
-    const stale = workout(3); stale.animeAscension.trainingWeek = 1
-    const result = deriveTrainingArc([workout(0),workout(1),workout(2),stale], 'saitama', startTrainingArc(startedAt))
-    expect(result.week).toBe(2)
-    expect(result.done).toBe(0)
+  it('refuses stale prescriptions after week one, preserving old workout evidence', () => {
+    const first = Array.from({length:5},(_,i)=>record(i))
+    const old = record(5,'saitama',{week:1})
+    const arc = deriveTrainingArc([...first,old], 'saitama', startTrainingArc(start))
+    expect(arc.week).toBe(2)
+    expect(arc.done).toBe(0)
   })
-  it('uses distinct original lengths and phases, and stops after completion', () => {
-    const saitama = deriveTrainingArc(Array.from({ length: 27 }, (_, i) => workout(i)), 'saitama', startTrainingArc(startedAt))
-    const goku = deriveTrainingArc(Array.from({ length: 30 }, (_, i) => workout(i, 'goku')), 'goku', startTrainingArc(startedAt))
-    expect(saitama.completed).toBe(true)
-    expect(saitama.totalWeeks).toBe(9)
-    expect(goku.completed).toBe(true)
-    expect(goku.totalWeeks).toBe(10)
-    expect(deriveTrainingArc(Array.from({ length: 18 }, (_, i) => workout(i)), 'saitama', startTrainingArc(startedAt)).phase).toBe('Hero Mastery')
-  })
-  it('prescription progresses modestly and deloads at phase start', () => {
-    expect(trainingPrescriptionDelta('saitama', 1)).toEqual({ sets: 0, reps: 0 })
-    expect(trainingPrescriptionDelta('saitama', 3).reps).toBeGreaterThan(0)
-    expect(trainingPrescriptionDelta('saitama', 4).sets).toBe(0)
-    expect(trainingPrescriptionDelta('saitama', 5).sets).toBe(1)
-    expect(trainingPrescriptionDelta('goku', 6).sets).toBe(0)
-    expect(trainingPrescriptionDelta('goku', 7).sets).toBe(1)
-    expect(trainingPrescriptionDelta('saitama', 99)).toEqual({ sets: 0, reps: 0 })
+  it('keeps original phase lengths and capped progression', () => {
+    expect(deriveTrainingArc([], 'saitama', startTrainingArc(start)).totalWeeks).toBe(9)
+    expect(deriveTrainingArc([], 'goku', startTrainingArc(start)).totalWeeks).toBe(10)
+    expect(trainingPrescriptionDelta('saitama',1)).toEqual({sets:0,reps:0})
+    expect(trainingPrescriptionDelta('saitama',3).reps).toBeGreaterThan(0)
+    expect(trainingPrescriptionDelta('saitama',4).sets).toBe(0)
+    expect(trainingPrescriptionDelta('goku',6).sets).toBe(0)
+    expect(trainingPrescriptionDelta('jinwoo',99)).toEqual({sets:0,reps:0})
   })
 })

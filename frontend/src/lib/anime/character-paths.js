@@ -3,6 +3,7 @@
 // interpretations of the themes, not fictional feats or unsafe character workouts.
 import { saitamaDifficulty } from './saitama.js'
 import { trainingPrescriptionDelta } from './training.js'
+import { CANON_PROGRAMS } from './canon-programs.js'
 
 const normalize = value => String(value || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim()
 const risky = /\b(jump|explosive|plyometric|clap|handstand|weighted|pistol|burpee|decline|snatch|clean and jerk)\b/
@@ -18,6 +19,7 @@ const CANDIDATES = {
   bridge: [/\bglute bridge\b/, /\bhip bridge\b/],
   core: [/\bdead bug\b/, /\bbird dog\b/],
   otherCore: [/\bbird dog\b/, /\bdead bug\b/],
+  situp: [/^sit ?up$/, /\bsit ?up\b/, /\bcrunch\b/],
   climber: [/^mountain climber$/, /\bmountain climber\b/],
   calf: [/\bstanding calf raise\b/, /^calf raise$/],
   row: [/\bone arm dumbbell row\b/, /\bsingle arm dumbbell row\b/, /\bbent over dumbbell row\b/, /\bdumbbell row\b/],
@@ -37,25 +39,26 @@ function choose(catalogue, key, allowed, equipmentType = body, except = new Set(
   return null
 }
 
-const DAYS = [1, 3, 5]
+// The prescribed days are distinct practical interpretations of source-canon
+// training themes, not copied OtakuAthlete schedules or fictional feats.
 const DESIGNS = Object.freeze({
   goku: {
     name: 'Goku · Saiyan Foundation',
-    titles: ['Strength', 'Power', 'Conditioning'],
-    // Power is controlled strength/push-pull work, not explosive jumps.
     sessions: [
-      [['squat', 2, 8], ['push', 2, 7], ['row', 2, 8], ['bridge', 2, 10], ['core', 2, 8]],
-      [['push', 2, 8], ['lunge', 2, 8], ['press', 2, 8], ['squat', 2, 8], ['otherCore', 2, 10]],
-      [['squat', 2, 12], ['climber', 2, 10], ['push', 2, 9], ['bridge', 2, 12], ['calf', 2, 12], ['core', 2, 10]],
+      [['squat',2,9],['push',2,7],['bridge',2,9],['core',2,8]],
+      [['push',2,8],['row',2,8],['press',2,8],['otherCore',2,8]],
+      [['squat',3,8],['lunge',2,8],['calf',2,12],['bridge',2,8]],
+      [['climber',2,12],['push',2,8],['squat',2,10],['core',2,10],['calf',2,12]],
     ],
   },
   jinwoo: {
     name: 'Sung Jinwoo · Hunter Foundation',
-    titles: ['Strength', 'Agility', 'Endurance'],
     sessions: [
-      [['squat', 2, 8], ['row', 2, 8], ['push', 2, 6], ['bridge', 2, 10], ['core', 2, 8]],
-      [['lunge', 2, 8], ['otherCore', 2, 10], ['push', 2, 7], ['calf', 2, 12], ['bridge', 2, 10]],
-      [['squat', 2, 12], ['push', 2, 9], ['climber', 2, 10], ['bridge', 2, 12], ['core', 2, 10]],
+      [['push',3,6],['squat',2,8],['situp',2,8],['bridge',2,8]],
+      [['squat',3,10],['situp',2,10],['lunge',2,8],['bridge',2,10]],
+      [['lunge',2,8],['otherCore',2,10],['climber',2,10],['calf',2,12]],
+      [['row',2,8],['push',2,8],['squat',2,8],['core',2,8],['bridge',2,8]],
+      [['squat',2,12],['push',2,10],['situp',2,10],['climber',2,12],['calf',2,12]],
     ],
   },
 })
@@ -71,7 +74,7 @@ const prescribe = (sets, reps, profile, focus, path) => {
   return { sets: Math.max(2, Math.min(4, nSets + advance.sets)), reps: Math.max(5, Math.min(20, nReps + advance.reps)) }
 }
 
-/** Build three openGym-native A/B/C sessions using openGym's own equipment policy.
+/** Build four/five openGym-native sessions using openGym's equipment policy.
  * An undefined/null equipment list means filtering is off, NOT bodyweight-only.
  */
 export function buildCharacterFoundation(path, { catalogue, uid, equipment, isAvailable = () => true, profile = {} }) {
@@ -88,29 +91,33 @@ export function buildCharacterFoundation(path, { catalogue, uid, equipment, isAv
   const selections = {
     push, squat, bridge, core,
     otherCore: choose(catalogue, 'otherCore', allowed, body, new Set([core.id])) || core,
+    situp: choose(catalogue, 'situp', allowed) || core,
     row: choose(catalogue, 'row', allowed, loaded),
     press: choose(catalogue, 'press', allowed, loaded),
     lunge: choose(catalogue, 'lunge', allowed),
     climber: choose(catalogue, 'climber', allowed),
     calf: choose(catalogue, 'calf', allowed),
   }
-  // The default four-movement fallback stays valid even with a minimal catalogue.
-  const fallback = [['push', 2, 7], ['squat', 2, 9], ['bridge', 2, 10], ['core', 2, 8]]
+  // Use a minimal fallback only if a themed day would otherwise have fewer
+  // than three catalogue movements. Never silently turn every day full-body.
+  const fallback = [['core', 2, 8], ['bridge', 2, 8], ['squat', 2, 8], ['push', 2, 7]]
   const routines = design.sessions.map((session, i) => {
     const seen = new Set()
     const ex = []
     for (const [slot, sets, reps] of [...session, ...fallback]) {
+      if (ex.length >= 3 && !session.some(row => row[0] === slot)) break
       const movement = selections[slot]
       if (!movement || seen.has(movement.id)) continue
       seen.add(movement.id)
-      ex.push({ id: movement.id, ...prescribe(sets, reps, profile, design.titles[i], path), weight: 0 })
+      ex.push({ id: movement.id, ...prescribe(sets, reps, profile, CANON_PROGRAMS[path].days[i].focus, path), weight: 0 })
     }
     const week = Number(profile?.trainingWeek)
     const maxWeek = path === 'goku' ? 10 : 9
     const suffix = Number.isInteger(week) && week > 1 && week <= maxWeek ? ` · Week ${week}` : ''
-    return { id: uid(), name: `${design.name} ${'ABC'[i]} — ${design.titles[i]}${suffix}`, emoji: 'figureStrength', ex }
+    const day = CANON_PROGRAMS[path].days[i]
+    return { id: uid(), name: `${design.name} ${day.slot} — ${day.focus}${suffix}`, emoji: 'figureStrength', ex }
   })
-  return { routines, schedule: DAYS.map((day, i) => ({ day, routineId: routines[i].id })) }
+  return { routines, schedule: CANON_PROGRAMS[path].days.map(({day}, i) => ({ day, routineId: routines[i].id })) }
 }
 
 export const buildGokuFoundation = args => buildCharacterFoundation('goku', args)

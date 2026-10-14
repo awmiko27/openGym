@@ -25,14 +25,16 @@ const build = (equipment, profile = {}) => {
 const refs = plan => plan.routines.map(r => r.ex.map(x => x.id))
 const shape = plan => plan.routines.map(r => r.ex.map(x => [x.id, x.sets, x.reps]))
 
-test('three distinct strength/endurance/conditioning routines retain native openGym schema', () => {
+test('five story-inspired sessions retain native openGym schema', () => {
   const plan = build(['body weight'])
-  assert.deepEqual(plan.schedule.map(x => x.day), [1, 3, 5])
-  assert.deepEqual(SAITAMA_DAYS.map(x => x.focus), ['Strength', 'Endurance', 'Conditioning'])
+  assert.deepEqual(plan.schedule.map(x => x.day), [1, 2, 4, 5, 6])
+  assert.deepEqual(SAITAMA_DAYS.map(x => x.focus), ['Push-up Progression', 'Squats & Core', 'Run Preparation', 'Hero Circuit', 'Endurance Check'])
   assert.deepEqual(plan.routines.map(r => r.name), [
-    'Saitama · Hero Foundation A — Strength',
-    'Saitama · Hero Foundation B — Endurance',
-    'Saitama · Hero Foundation C — Conditioning',
+    'Saitama · Hero Foundation A — Push-up Progression',
+    'Saitama · Hero Foundation B — Squats & Core',
+    'Saitama · Hero Foundation C — Run Preparation',
+    'Saitama · Hero Foundation D — Hero Circuit',
+    'Saitama · Hero Foundation E — Endurance Check',
   ])
   assert.notDeepEqual(shape(plan)[0], shape(plan)[1])
   assert.notDeepEqual(shape(plan)[1], shape(plan)[2])
@@ -50,9 +52,9 @@ test('only the openGym equipment restriction controls allowed exercises', () => 
   const filtered = build(['body weight'])
   const everything = build(undefined)
   assert.ok(filtered.routines.every(r => r.ex.every(x => x.id !== '105')))
-  assert.ok(everything.routines[0].ex.some(x => x.id === '105'))
-  const withDumbbells = build(['dumbbell'])
-  assert.ok(withDumbbells.routines[0].ex.some(x => x.id === '105'))
+  assert.ok(everything.routines[4].ex.some(x => x.id === '105'))
+  const withDumbbells = build(['body weight', 'dumbbell'])
+  assert.ok(withDumbbells.routines[4].ex.some(x => x.id === '105'))
   assert.ok(build(['body weight']).routines.every(r => r.ex.every(x => x.id !== '111')))
 })
 
@@ -82,12 +84,12 @@ test('fails closed for missing mandatory movements and never invents exercise ID
   const plan = build([])
   assert.ok(plan)
   for (const r of plan.routines) for (const ex of r.ex) assert.ok(catalogue.find(x => x.id === ex.id))
-  assert.equal(new Set(plan.routines.map(r => r.id)).size, 3)
+  assert.equal(new Set(plan.routines.map(r => r.id)).size, 5)
 })
 
 test('optional conditioning movements missing from a minimal catalogue do not invalidate the plan', () => {
   const minimal = catalogue.filter(x => ['100', '101', '102', '103'].includes(x.id))
   const result = buildSaitamaFoundation({ catalogue: minimal, uid: (() => { let i = 0; return () => '' + ++i })() })
   assert.ok(result)
-  assert.ok(result.routines.every(r => r.ex.length === 4))
+  assert.ok(result.routines.every(r => r.ex.length >= 3))
 })

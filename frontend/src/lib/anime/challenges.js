@@ -13,7 +13,7 @@ export const CHALLENGES = Object.freeze(Object.fromEntries(Object.entries(NAMES)
   names.map((name, i) => {
     const id = `${path}-${LENGTHS[i]}`
     return [id, { id, path, name, days: LENGTHS[i], sessions: TARGETS[i], bonusXp: BONUSES[i],
-      description: `Complete ${TARGETS[i]} verified workouts on separate training days, with recovery between sessions. Your last session is the final trial.` }]
+      description: `Complete ${TARGETS[i]} verified workouts on distinct days, using the character's scheduled recovery days. The final session is your trial.` }]
   }))))
 
 export const beginChallenge = (id, at = Date.now()) => {
@@ -26,13 +26,11 @@ export function deriveChallenge(workouts, active, today = localDay()) {
   if (!design || active?.v !== 1 || !Number.isFinite(active.startedAt)) return null
   const eligible = qualifyingAfter(workouts, design.path, active.startedAt)
   const usedDays = new Set(), credited = []
-  let last = -Infinity
   for (const w of eligible) {
     const day = Math.floor(Date.parse(`${w.d}T12:00:00Z`) / 86400000)
-    if (usedDays.has(w.d) || day - last < 2) continue
+    if (!Number.isFinite(day) || usedDays.has(w.d)) continue
     usedDays.add(w.d)
     credited.push(w)
-    last = day
     if (credited.length === design.sessions) break
   }
   const count = credited.length
@@ -55,6 +53,38 @@ export function challengeProgresses(workouts, statesForPath) {
     seen.add(state.id)
     return deriveChallenge(workouts, state)
   }).filter(Boolean)
+}
+
+/** Ordered challenge ladder for a single character: 7 → 14 → 30 days.
+ * Tiers unlock from VERIFIED completion of the preceding tier, not elapsed time.
+ * Existing started tiers (including older out-of-order saves) remain visible
+ * and retain derived rewards; this only restricts future enrollments.
+ */
+export function challengeTierStates(workouts, path, history) {
+  const progress = challengeProgresses(workouts, history).filter(c => c.path === path)
+  const current = new Map(progress.map(c => [c.id, c]))
+  const active = progress.some(c => !c.finished)
+  const lengths = [7, 14, 30]
+  return lengths.map((days, i) => {
+    const definition = CHALLENGES[`${path}-${days}`]
+    if (!definition) return null
+    const unlocked = i === 0 || lengths.slice(0, i).every(length => current.get(`${path}-${length}`)?.finished === true)
+    const saved = current.get(definition.id) || null
+    return {
+      ...definition, tier: i + 1, progress: saved, unlocked,
+      canStart: unlocked && !saved && !active,
+      status: saved ? (saved.finished ? 'completed' : 'in-progress') : unlocked ? 'available' : 'locked',
+      prerequisite: i ? CHALLENGES[`${path}-${lengths[i - 1]}`]?.name : null,
+    }
+  }).filter(Boolean)
+}
+
+/** Pure enrollment gate. Also used INSIDE the store update to avoid stale UI. */
+export function enrollChallenge(workouts, path, history, id, now = Date.now()) {
+  const previous = Array.isArray(history) ? history : []
+  const tier = challengeTierStates(workouts, path, previous).find(t => t.id === id)
+  if (!tier?.canStart || !Number.isFinite(now)) return previous
+  return [...previous, beginChallenge(id, now)]
 }
 
 export function challengeBonuses(workouts, states) {
