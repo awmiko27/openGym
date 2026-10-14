@@ -22,24 +22,63 @@ export function challengePlan(state, id, { catalogue, equipment, isAvailable, ui
   const options = { catalogue, equipment, isAvailable, uid, profile }
   const base = path === 'saitama' ? buildSaitamaFoundation(options) : buildCharacterFoundation(path, options)
   if (!base || !Array.isArray(base.routines) || !Array.isArray(base.schedule)) return null
-  // The 7-day trial samples three of the character's distinct training themes.
-  // Tier II uses four sessions; Tier III uses the full character split.
+  // Character- and tier-specific assessment movements. These are genuine
+  // movement choices from the loaded openGym program, never invented IDs.
+  const leadByPath = { saitama: [0, 1, 4], goku: [0, 1, 2], jinwoo: [0, 2, 4] }
+  const tier = definition.days === 7 ? 0 : definition.days === 14 ? 1 : 2
+  const firstIndex = leadByPath[path]?.[tier]
   const count = definition.days === 7 ? 3 : definition.days === 14 ? 4 : base.routines.length
-  const indices = definition.days === 7 ? [0, Math.max(1, base.routines.length - 2), base.routines.length - 1]
-    : Array.from({ length: count }, (_, i) => i)
-  const selected = [...new Set(indices)]
-  if (selected.length !== count || selected.some(i => !base.routines[i] || !base.schedule[i])) return null
-  const bump = definition.days === 30 ? 2 : definition.days === 14 ? 1 : 0
+  if (!Number.isInteger(firstIndex) || !base.routines[firstIndex] || count > base.routines.length) return null
+  const selected = Array.from({ length: count }, (_, i) => (firstIndex + i) % base.routines.length)
+  if (selected.some(i => !base.routines[i] || !base.schedule[i])) return null
+  const bump = tier === 2 ? 2 : tier === 1 ? 1 : 0
   const routines = selected.map((i, index) => ({ ...base.routines[i],
     name: `${base.routines[i].name} · Trial ${id}`,
-    // Trial prescriptions have their own conservative buildup; final-session
-    // volume rises slightly for the longer, unlocked challenge tiers.
     ex: base.routines[i].ex.map(row => ({ ...row,
-      sets: Math.min(4, Number(row.sets) + (index === selected.length - 1 && definition.days > 7 ? 1 : 0)),
+      sets: Math.min(4, Number(row.sets) + (index === selected.length - 1 && tier > 0 ? 1 : 0)),
       reps: Math.min(20, Number(row.reps) + bump + (index > 0 ? 1 : 0)),
     })),
   }))
   if (routines.some(r => !r.ex?.length)) return null
+
+  // An assessment is performed at the beginning and the final session. For
+  // 14/30-day blocks there is also an intermediate checkpoint. The final
+  // routine contains the *same actual exercise ID* as the baseline, with a
+  // conservatively increased repetition target. Every set is still verified
+  // by the existing openGym workout-proof engine.
+  const baselineRow = routines[0].ex[0]
+  if (!baselineRow || !Number.isFinite(baselineRow.sets) || !Number.isFinite(baselineRow.reps)) return null
+  const baselineTotal = baselineRow.sets * baselineRow.reps
+  const minGain = Math.max(2, Math.ceil(baselineTotal * [0.08, 0.10, 0.12][tier]))
+  const checkpointIndex = tier === 0 ? null : tier === 1 ? 3 : path === 'goku' ? 6 : 7
+  const lastIndex = definition.sessions - 1
+  const finalTemplate = lastIndex % routines.length
+  const checkpointTemplate = checkpointIndex === null ? null : checkpointIndex % routines.length
+  if (checkpointTemplate === finalTemplate || checkpointTemplate === 0 || finalTemplate === 0) return null
+  const addAssessment = (routineIndex, gain) => {
+    const routine = routines[routineIndex]
+    const requiredTotal = baselineTotal + gain
+    const targetReps = Math.ceil(requiredTotal / baselineRow.sets)
+    if (targetReps > 24) return null // safety ceiling; fail before editing user's plan
+    const row = { ...baselineRow, sets: baselineRow.sets, reps: targetReps }
+    const original = routine.ex.findIndex(ex => String(ex.id) === String(baselineRow.id))
+    routine.ex = [...routine.ex]
+    if (original >= 0) routine.ex[original] = row
+    else routine.ex.push(row)
+    return row.sets * row.reps
+  }
+  const checkpointTotal = checkpointTemplate === null ? null
+    : addAssessment(checkpointTemplate, Math.max(1, Math.ceil(minGain / 2)))
+  const finalTotal = addAssessment(finalTemplate, minGain)
+  if (finalTotal === null || (checkpointTemplate !== null && checkpointTotal === null)) return null
+  const actualExercise = catalogue.find(ex => String(ex?.id) === String(baselineRow.id))
+  const objective = {
+    v: 1, title: definition.name, focus: definition.focus,
+    anchorId: baselineRow.id, exerciseName: actualExercise?.n || 'Assessment movement',
+    baselineTotal, minGain, finalTotal,
+    checkpointAt: checkpointIndex === null ? null : checkpointIndex + 1,
+    checkpointTotal,
+  }
   // The first workout is on the day the challenge actually starts. Preserve
   // the program's relative rest spacing as we rotate it around that day.
   // Example: a Wednesday start means Wednesday is Day 1, not a rest day.
@@ -53,7 +92,7 @@ export function challengePlan(state, id, { catalogue, equipment, isAvailable, ui
   }))
   if (new Set(schedule.map(s => s.day)).size !== schedule.length) return null
   const challengeWeek = Object.fromEntries(schedule.map(s => [s.day, [s.routineId]]))
-  return { id, path, startedAt, startDay, routines, schedule,
+  return { id, path, startedAt, startDay, routines, schedule, objective,
     before: weekCopy(state.week), challengeWeek,
     previousPath: state.animeAscension?.path || path }
 }
@@ -70,7 +109,12 @@ export function activateChallenge(state, plan) {
   const history = Array.isArray(histories[plan.path]) ? histories[plan.path] : []
   const next = enrollChallenge(state.workouts, plan.path, history, plan.id, plan.startedAt)
   if (next === history) throw new Error('Challenge is no longer available.')
-  const entry = { ...next.at(-1), v: 2 } // v2 requires challenge-specific saved-workout proof.
+  if (!plan.objective || !Array.isArray(plan.routines) || plan.routines.length < 3)
+    throw new Error('Missing trial assessment. Review the challenge again.')
+  const entry = { ...next.at(-1), v: 3,
+    objective: structuredClone(plan.objective),
+    routineIds: plan.routines.map(r => r.id),
+  } // v3 adds measured baseline, checkpoint, and final assessment proof.
   state.routines.push(...plan.routines)
   state.week = weekCopy(plan.challengeWeek)
   state.animeAscension = {
@@ -86,7 +130,7 @@ export function activeChallengeProgress(state) {
   const mode = state?.animeAscension?.challengeMode
   if (mode?.v !== 1) return null
   const history = state.animeAscension?.challenges?.[mode.path] || []
-  const entry = history.findLast(x => x.id === mode.id && x.startedAt === mode.startedAt && x.v === 2)
+  const entry = history.findLast(x => x.id === mode.id && x.startedAt === mode.startedAt && [2, 3].includes(x.v))
   return entry ? deriveChallenge(state.workouts, entry) : null
 }
 
@@ -134,7 +178,7 @@ export function exitChallenge(state, { cancel = false, at = Date.now() } = {}) {
   let challenges = aa.challenges || {}
   if (cancel && progress && !progress.finished) {
     challenges = { ...challenges, [mode.path]: (challenges[mode.path] || []).map(entry =>
-      entry.id === mode.id && entry.startedAt === mode.startedAt && entry.v === 2
+      entry.id === mode.id && entry.startedAt === mode.startedAt && [2, 3].includes(entry.v)
         ? { ...entry, cancelledAt: at } : entry) }
   }
   state.week = week

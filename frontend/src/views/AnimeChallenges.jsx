@@ -86,6 +86,13 @@ export default function AnimeChallenges({ path, onExit }) {
       {mode.path === path && Number.isInteger(mode.startDay) && <p className="aa-note">Day 1: {weekdays[mode.startDay]}. Trial workouts follow the challenge start day, not the usual weekly schedule.</p>}
       {mode.path === path && <>
         <p className="aa-note">{activeProgress?.count || 0} / {activeProgress?.sessions || 0} verified challenge workouts</p>
+        {activeProgress && !activeProgress.objective && <p className="aa-note">This challenge was started before benchmark assessments. It keeps its original completion rules; cancel and restart an eligible tier to use the new tests.</p>}
+        {activeProgress?.objective && <div className="aa-mode-assessment" aria-label="Challenge assessment progress">
+          <strong>{activeProgress.objective.focus}</strong>
+          <p className="aa-note">Exercise: {activeProgress.objective.exerciseName}</p>
+          <p className="aa-note">Baseline: {activeProgress.objective.baseline ?? 'Not recorded'} repetitions · Final trial target: {activeProgress.objective.finalTarget} total repetitions</p>
+          {activeProgress.objective.checkpointAt && <p className="aa-note">Checkpoint (session {activeProgress.objective.checkpointAt}): {activeProgress.objective.checkpointScore === null ? 'Not yet passed' : `${activeProgress.objective.checkpointScore} repetitions · Passed`}</p>}
+        </div>}
         {activeProgress?.finished ? <button className="btn primary" type="button" disabled={Boolean(S.active)} onClick={() => finish(false)}>Finish challenge & resume training arc</button> : <>
           {!cancelConfirm ? <button className="btn" type="button" disabled={Boolean(S.active)} onClick={() => setCancelConfirm(true)}>Cancel challenge</button> : <div className="aa-mode-cancel">
             <p className="aa-note">Cancel this challenge? Completed workouts stay in history, but the cancelled attempt earns no challenge badge or completion bonus.</p>
@@ -116,15 +123,23 @@ export default function AnimeChallenges({ path, onExit }) {
             {p && <>
               <progress max={stage.sessions} value={p.count} className="aa-rpg-bar" aria-label={`${stage.name} challenge progress`} />
               <p className="aa-note">{p.count} of {stage.sessions} verified trial sessions · Day {p.elapsed}{p.extended ? ' · Deadline extended' : ''}</p>
+              {!p.objective && status === 'in-progress' && <p className="aa-note">Legacy attempt: your original counting rules remain until you finish or cancel. New assessment rules apply only when starting a fresh challenge.</p>}
+              {p.objective && <p className="aa-note">{p.objective.exerciseName}: starting benchmark {p.objective.baseline ?? 'pending'} reps; final target {p.objective.finalTarget} reps.{p.objective.checkpointAt ? ` Checkpoint at session ${p.objective.checkpointAt}.` : ''}</p>}
               {status === 'completed' ? <p className="aa-challenge-success">Badge earned · {p.completedOn} · +{p.bonusXp} XP</p> :
-                <p className="aa-note">{p.finalTrial ? 'Final trial: one more qualifying workout.' : 'Follow the challenge schedule and log the assigned routines.'}</p>}
+                <p className="aa-note">{p.finalTrial ? 'Final assessment ready: beat your starting benchmark to clear the trial.' : 'Complete each prescribed workout in order. Your opening session records the benchmark.'}</p>}
             </>}
             {status === 'available' && !mode && <>
               <button className="btn" type="button" onClick={() => setPreviewId(previewId === stage.id ? null : stage.id)}>{previewId === stage.id ? 'Hide workout preview' : 'Review challenge workouts'}</button>
               {preview && <div className="aa-mode-preview" aria-label="Challenge workout preview">
-                {preview.schedule.map(day => {
+                <p className="aa-note"><strong>Challenge objective:</strong> {stage.focus} · {preview.objective.exerciseName}</p>
+                <p className="aa-note">Opening baseline: {preview.objective.baselineTotal} planned reps · Final assessment: {preview.objective.finalTotal} planned reps (increase at least {preview.objective.minGain}).{preview.objective.checkpointAt ? ` Midway checkpoint at workout ${preview.objective.checkpointAt}.` : ''}</p>
+                {Array.from({ length: stage.sessions }, (_, index) => {
+                  const position = index % preview.schedule.length
+                  const day = preview.schedule[position]
                   const r = preview.routines.find(x => x.id === day.routineId)
-                  return <details key={day.day}><summary>Day {trialDay(day.day, preview.startDay)} · {weekdays[day.day]} · {r?.name.split(' · Trial ')[0]}</summary>
+                  const dayNumber = trialDay(day.day, preview.startDay) + 7 * Math.floor(index / preview.schedule.length)
+                  const label = index === 0 ? 'Baseline' : index + 1 === preview.objective.checkpointAt ? 'Checkpoint' : index === stage.sessions - 1 ? 'Final assessment' : 'Training'
+                  return <details key={index}><summary>Session {index + 1} · Day {dayNumber} · {weekdays[day.day]} · {label} · {r?.name.split(' · Trial ')[0]}</summary>
                     <ul>{r?.ex.map(ex => <li key={ex.id}>{EXIDX[ex.id]?.n || 'Exercise'} · {ex.sets} × {ex.reps}</li>)}</ul>
                   </details>
                 })}

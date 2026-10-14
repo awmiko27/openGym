@@ -127,3 +127,8 @@
 .aa-mode-preview summary { cursor: pointer; font-size: 12px; font-weight: 700; }
 .aa-mode-preview li { color: var(--label-2); font-size: 12px; padding: 2px 0; }
 .aa-mode-preview ul { padding-left: 19px; }
+
+/* MVP character-specific baseline and final-trial assessment. */
+.aa-mode-assessment { padding: 12px 14px; border: 1px solid var(--sep); border-radius: 11px; background: var(--surface-3); }
+.aa-mode-assessment > strong { font-size: 13px; }
+.aa-mode-assessment p { margin: 7px 0 0; }
