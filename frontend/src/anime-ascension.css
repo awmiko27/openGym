@@ -18,8 +18,6 @@
 .aa-fields label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
 .aa-fields input, .aa-fields select { min-width: 0; width: 100%; box-sizing: border-box; padding: 11px 10px; border-radius: 9px; border: 1px solid var(--sep); background: var(--surface-1); color: var(--label); font: inherit; }
 .aa-fields input:focus-visible, .aa-fields select:focus-visible, .aa-page button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
-.aa-check { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; margin: 14px 0; }
-.aa-check input { margin-top: 3px; flex: none; }
 .aa-note, .aa-credits { color: var(--label-2); font-size: 12px; line-height: 1.5; }
 .aa-warning { border-inline-start: 3px solid var(--orange); padding: 10px 12px; background: var(--surface-3); font-size: 13px; line-height: 1.5; }
 .aa-errors { color: var(--red); margin: 12px 0; font-size: 13px; }

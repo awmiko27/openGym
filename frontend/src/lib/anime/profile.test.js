@@ -1,34 +1,46 @@
 import { describe, it, expect } from 'vitest'
-import { ANIME_PATHS, profileDraft, validateAnimeProfile, selectedEquipmentProfile } from './profile.js'
-const valid = { path: 'saitama', goal: 'general', experience: 'beginner', equipmentProfileId: '', ageYears: '25', ready: true, limitations: false }
-describe('Anime Ascension phase 2 onboarding', () => {
+import {
+  ANIME_PATHS, profileDraft, validateAnimeProfile,
+} from './profile.js'
+import { activeProfile } from '../equipment.js'
+
+const valid = { path: 'saitama', goal: 'general', experience: 'beginner', ageYears: '25' }
+
+describe('Anime Ascension onboarding — openGym data reuse', () => {
   it('offers only Saitama as available', () => expect(ANIME_PATHS.filter(x => x.available).map(x => x.id)).toEqual(['saitama']))
-  it('allows adult bodyweight-only setup with optional measurements absent', () => {
-    const x = validateAnimeProfile(valid)
+  it('stores only the anime-specific fields', () => {
+    const x = validateAnimeProfile({
+      ...valid, weightKg: '71', equipmentProfileId: 'home', ready: false, limitations: true,
+    })
     expect(x.ok).toBe(true)
-    expect(x.value.equipmentProfileId).toBe('')
-    expect(x.value.weightKg).toBe(null)
+    expect(x.value).toEqual({ v: 2, path: 'saitama', ageYears: 25, heightCm: null, goal: 'general', experience: 'beginner' })
+    expect(x.value).not.toHaveProperty('weightKg')
+    expect(x.value).not.toHaveProperty('equipmentProfileId')
+    expect(x.value).not.toHaveProperty('readinessAcknowledgedAt')
   })
-  it('rejects unapproved characters', () => expect(validateAnimeProfile({ ...valid, path: 'goku' }).ok).toBe(false))
-  it('rejects underage values and invalid numbers', () => {
+  it('does not require the removed checkboxes', () => {
+    expect(validateAnimeProfile(valid).ok).toBe(true)
+    expect(validateAnimeProfile({ ...valid, ready: false, limitations: true }).ok).toBe(true)
+  })
+  it('rejects unavailable characters and malformed profile fields', () => {
+    expect(validateAnimeProfile({ ...valid, path: 'goku' }).ok).toBe(false)
     expect(validateAnimeProfile({ ...valid, ageYears: '17' }).ok).toBe(false)
+    expect(validateAnimeProfile({ ...valid, ageYears: '25.5' }).ok).toBe(false)
     expect(validateAnimeProfile({ ...valid, heightCm: 'Infinity' }).ok).toBe(false)
   })
-  it('does not let arbitrary profile IDs bypass equipment validation', () => {
-    expect(validateAnimeProfile({ ...valid, equipmentProfileId: 'other-user' }, [{ id: 'my-id' }]).ok).toBe(false)
+  it('prefills the original profile without carrying duplicate weight, equipment or checkbox values', () => {
+    const draft = profileDraft({ goal: 'endurance', ageYears: 29, heightCm: 174, weightKg: 71, equipmentProfileId: 'home', ready: true, limitations: true })
+    expect(draft).toEqual({ path: 'saitama', ageYears: '29', heightCm: '174', goal: 'endurance', experience: 'beginner' })
   })
-  it('requires readiness and stops when a limitation is flagged', () => {
-    expect(validateAnimeProfile({ ...valid, ready: false }).ok).toBe(false)
-    expect(validateAnimeProfile({ ...valid, limitations: true }).ok).toBe(false)
+  it('honors openGym when equipment filtering is off, even if a profile is selected', () => {
+    const everything = { id: 'all', name: 'Everything', equipment: ['barbell'] }
+    const S = { equipFilterOn: false, activeEquipId: 'all', equipProfiles: [everything] }
+    expect(activeProfile(S)).toBeNull()
   })
-  it('prefills saved values without repeating an old readiness acknowledgment', () => {
-    const d = profileDraft({ goal: 'endurance', weightKg: 71, ready: true })
-    expect(d.weightKg).toBe('71')
-    expect(d.ready).toBe(false)
-  })
-  it('chooses exactly the named equipment profile', () => {
-    const p = { id: 'home', name: 'Home' }
-    expect(selectedEquipmentProfile([p], 'home')).toBe(p)
-    expect(selectedEquipmentProfile([p], 'gym')).toBe(null)
+  it('honors openGym when equipment filtering is on with a valid active profile', () => {
+    const everything = { id: 'all', name: 'Everything', equipment: ['barbell'] }
+    const S = { equipFilterOn: true, activeEquipId: 'all', equipProfiles: [everything] }
+    expect(activeProfile(S)).toBe(everything)
+    expect(activeProfile({ ...S, activeEquipId: 'removed' })).toBeNull()
   })
 })
