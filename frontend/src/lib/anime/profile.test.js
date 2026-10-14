@@ -7,7 +7,7 @@ import { activeProfile } from '../equipment.js'
 const valid = { path: 'saitama', goal: 'general', experience: 'beginner', ageYears: '25' }
 
 describe('Anime Ascension onboarding — openGym data reuse', () => {
-  it('offers only Saitama as available', () => expect(ANIME_PATHS.filter(x => x.available).map(x => x.id)).toEqual(['saitama']))
+  it('offers all three character paths', () => expect(ANIME_PATHS.filter(x => x.available).map(x => x.id)).toEqual(['saitama', 'goku', 'jinwoo']))
   it('stores only the anime-specific fields', () => {
     const x = validateAnimeProfile({
       ...valid, weightKg: '71', equipmentProfileId: 'home', ready: false, limitations: true,
@@ -22,8 +22,10 @@ describe('Anime Ascension onboarding — openGym data reuse', () => {
     expect(validateAnimeProfile(valid).ok).toBe(true)
     expect(validateAnimeProfile({ ...valid, ready: false, limitations: true }).ok).toBe(true)
   })
-  it('rejects unavailable characters and malformed profile fields', () => {
-    expect(validateAnimeProfile({ ...valid, path: 'goku' }).ok).toBe(false)
+  it('accepts each path and rejects unknown characters and malformed fields', () => {
+    expect(validateAnimeProfile({ ...valid, path: 'goku' }).value.path).toBe('goku')
+    expect(validateAnimeProfile({ ...valid, path: 'jinwoo' }).value.path).toBe('jinwoo')
+    expect(validateAnimeProfile({ ...valid, path: 'unknown' }).ok).toBe(false)
     expect(validateAnimeProfile({ ...valid, ageYears: '17' }).ok).toBe(false)
     expect(validateAnimeProfile({ ...valid, ageYears: '25.5' }).ok).toBe(false)
     expect(validateAnimeProfile({ ...valid, heightCm: 'Infinity' }).ok).toBe(false)
@@ -31,6 +33,7 @@ describe('Anime Ascension onboarding — openGym data reuse', () => {
   it('prefills the original profile without carrying duplicate weight, equipment or checkbox values', () => {
     const draft = profileDraft({ goal: 'endurance', ageYears: 29, heightCm: 174, weightKg: 71, equipmentProfileId: 'home', ready: true, limitations: true })
     expect(draft).toEqual({ path: 'saitama', ageYears: '29', heightCm: '174', goal: 'endurance', experience: 'beginner' })
+    expect(profileDraft({ ...draft, path: 'jinwoo' }).path).toBe('jinwoo')
   })
   it('honors openGym when equipment filtering is off, even if a profile is selected', () => {
     const everything = { id: 'all', name: 'Everything', equipment: ['barbell'] }

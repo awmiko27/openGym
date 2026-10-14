@@ -28,3 +28,7 @@
 .aa-home-entry button { white-space: nowrap; }
 @media(max-width: 420px) { .aa-fields { grid-template-columns: 1fr; } .aa-path { flex-wrap: wrap; } .aa-path-status { margin-inline-start: 45px; } .aa-home-entry { flex-wrap: wrap; } }
 @media(prefers-reduced-motion: reduce) { .aa-page * { animation: none !important; transition: none !important; } }
+/* Phase 4: character cards are accessible buttons, not passive status tiles. */
+.aa-page button.aa-path { width: 100%; background: var(--surface-1); color: var(--label); font: inherit; text-align: start; cursor: pointer; }
+.aa-page button.aa-path[aria-pressed='true'] { border-color: var(--acc); background: var(--surface-3); }
+.aa-rpg-paths { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -112,3 +112,33 @@ describe('Anime Ascension Phase 3.1 reward preview', () => {
     expect(completedAnimeWorkoutRewards({ id:'other' }, [])).toBe(null)
   })
 })
+
+
+describe('Anime Ascension Phase 4 character-specific RPG', () => {
+  for (const [path, name] of [
+    ['goku', 'Goku · Saiyan Foundation A — Strength'],
+    ['jinwoo', 'Sung Jinwoo · Hunter Foundation A — Strength'],
+  ]) {
+    it(`recognizes ${path} sessions, previews XP and preserves character identity`, () => {
+      const current = { animeAscension: { path }, routines: [{ id: path + 'A', name }] }
+      const snapshot = animeSessionSnapshot(current, [path + 'A'], planned)
+      expect(snapshot).toMatchObject({ v: 1, path, routineId: path + 'A' })
+      expect(animeSessionProof({ animeAscension: snapshot }).path).toBe(path)
+      const workout = { ...wk(path, '2026-10-13'), routineIds: [path + 'A'], routineId: path + 'A', animeAscension: snapshot }
+      expect(isQualifiedAnimeWorkout(workout)).toBe(true)
+      expect(deriveAnimeRpg([workout], path).xp).toBe(180)
+      expect(deriveAnimeRpg([workout], 'saitama').xp).toBe(0)
+    })
+  }
+  it('awards only the active character without merging daily and weekly rewards', () => {
+    const goku = animeSessionSnapshot({ animeAscension: { path: 'goku' }, routines: [{ id: 'g', name: 'Goku · Saiyan Foundation B — Power' }] }, ['g'], planned)
+    const jinwoo = animeSessionSnapshot({ animeAscension: { path: 'jinwoo' }, routines: [{ id: 'j', name: 'Sung Jinwoo · Hunter Foundation B — Agility' }] }, ['j'], planned)
+    const w1 = { ...wk('g', '2026-10-13'), routineIds: ['g'], routineId: 'g', animeAscension: goku }
+    const w2 = { ...wk('j', '2026-10-13'), routineIds: ['j'], routineId: 'j', animeAscension: jinwoo }
+    const w3 = wk('s', '2026-10-13')
+    for (const path of ['saitama', 'goku', 'jinwoo']) {
+      expect(deriveAnimeRpg([w1, w2, w3], path).xp).toBe(180)
+      expect(deriveAnimeRpg([w1, w2, w3], path).count).toBe(1)
+    }
+  })
+})

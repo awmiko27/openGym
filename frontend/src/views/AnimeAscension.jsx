@@ -6,6 +6,12 @@ import { activeProfile } from '../lib/equipment.js'
 import { scheduleModeOf } from '../lib/rotation.js'
 import { ANIME_PATHS, profileDraft, validateAnimeProfile } from '../lib/anime/profile.js'
 
+const PLANS = {
+  saitama: { id: 'saitama-foundation', name: 'Saitama · Hero Foundation', details: 'A — Strength, B — Endurance, C — Conditioning' },
+  goku: { id: 'goku-foundation', name: 'Goku · Saiyan Foundation', details: 'A — Strength, B — Power, C — Conditioning' },
+  jinwoo: { id: 'jinwoo-foundation', name: 'Sung Jinwoo · Hunter Foundation', details: 'A — Strength, B — Agility, C — Endurance' },
+}
+
 const goals = [
   ['general', 'General fitness'], ['strength', 'Strength'],
   ['endurance', 'Endurance'], ['conditioning', 'Conditioning'],
@@ -40,7 +46,7 @@ export default function AnimeAscension() {
       // Respect openGym's own equipment-filter toggle and active profile.
       // When filtering is off, activeProfile returns null (all equipment),
       // so the starter plan loads as written without imposing restrictions.
-      const loaded = loadStarterPlan('saitama-foundation', activeProfile(useStore.getState().S), result.value)
+      const loaded = loadStarterPlan(PLANS[result.value.path].id, activeProfile(useStore.getState().S), result.value)
       if (!loaded) {
         setLoadingError('No suitable workout could be built from the available exercise catalog and equipment. Nothing was changed.')
         return
@@ -50,8 +56,9 @@ export default function AnimeAscension() {
       // No openGym bodyweight or equipment settings are modified.
       update(st => { st.animeAscension = result.value })
       navigate('/plan')
-    } catch {
-      setLoadingError('The program could not be loaded. Review your plan before trying again.')
+    } catch (error) {
+      console.error('Anime Ascension plan load failed:', error)
+      setLoadingError('The program could not be loaded. Check the browser console for the underlying error.')
     }
   }
   return <main className="narrow aa-page">
@@ -64,19 +71,21 @@ export default function AnimeAscension() {
     <div className="aa-section" aria-label="Character training paths">
       <h2>Choose your training path</h2>
       <div className="aa-paths">
-        {ANIME_PATHS.map(path => <div key={path.id} className={'aa-path' + (path.available ? ' selected' : ' unavailable')}>
+        {ANIME_PATHS.map(path => <button type="button" key={path.id} aria-pressed={draft.path === path.id}
+          onClick={() => { set('path', path.id); setPage('setup') }}
+          className={'aa-path' + (draft.path === path.id ? ' selected' : '')}>
           <span className="aa-path-icon" aria-hidden="true">{path.id === 'saitama' ? '👊' : path.id === 'goku' ? '⚡' : '⚔️'}</span>
           <div className="aa-path-copy">
             <strong>{path.title}</strong>
             <small>{path.series} · {path.focus}</small>
           </div>
-          <span className="aa-path-status">{path.available ? 'Available' : 'Coming soon'}</span>
-        </div>)}
+          <span className="aa-path-status">{draft.path === path.id ? 'Selected' : 'Choose path'}</span>
+        </button>)}
       </div>
     </div>
     {page === 'setup' ? <form className="aa-section aa-form" onSubmit={e => { e.preventDefault(); review() }}>
       <h2>Your starting profile</h2>
-      <p className="aa-note">Age and optional height are saved for your Anime Ascension profile. Experience and goal adjust your Saitama starting sets and repetitions; age 70+ caps advanced volume. Height is informational only. Equipment continues to follow openGym Settings.</p>
+      <p className="aa-note">Age and optional height are saved for your Anime Ascension profile. Experience and goal adjust the selected character's starting sets and repetitions; age 70+ caps advanced volume. Height is informational only. Equipment continues to follow openGym Settings.</p>
       <div className="aa-fields">
         <label>Age (18+, required)<input type="number" min="18" max="100" step="1" value={draft.ageYears} onChange={e => set('ageYears', e.target.value)} /></label>
         <label>Height in cm (optional)<input type="number" min="100" max="250" step="0.1" value={draft.heightCm} onChange={e => set('heightCm', e.target.value)} /></label>
@@ -86,11 +95,11 @@ export default function AnimeAscension() {
         </select></label>
       </div>
       {errors.length > 0 && <div role="alert" className="aa-errors">{errors.map((error, i) => <p key={i}>{error}</p>)}</div>}
-      <button className="btn primary aa-main-button" type="submit">Review Saitama plan</button>
+      <button className="btn primary aa-main-button" type="submit">Review {ANIME_PATHS.find(path => path.id === draft.path)?.title} plan</button>
     </form> : <section className="aa-section">
       <h2>Review before loading</h2>
-      <p><strong>Saitama · Hero Foundation</strong></p>
-      <p>A — Strength (Monday): controlled push, squat and core work. B — Endurance (Wednesday): higher repetitions and optional lunges. C — Conditioning (Friday): low-impact full-body repetitions. Experience and training goal adjust starting volume; exercises follow openGym equipment Settings. Existing demos, logging and XP checks remain in use.</p>
+      <p><strong>{PLANS[draft.path].name}</strong></p>
+      <p>{PLANS[draft.path].details}. Monday / Wednesday / Friday. Experience and goal adjust starting volume. Exercises follow openGym equipment Settings; existing demonstrations, workout logging, and character-specific XP continue to work.</p>
       <p className="aa-warning">Loading this plan reassigns Monday, Wednesday, and Friday in your current fixed-week schedule. Existing workout history and routine records are retained. An active session will not be replaced.</p>
       {loadingError && <div role="alert" className="aa-errors">{loadingError}</div>}
       <div className="aa-actions">

@@ -2,8 +2,8 @@
 // settings are owned by openGym; no duplicate fields or selectors here.
 export const ANIME_PATHS = Object.freeze([
   { id: 'saitama', title: 'Saitama', series: 'One Punch Man', focus: 'Calisthenics and endurance', available: true },
-  { id: 'goku', title: 'Goku', series: 'Dragon Ball', focus: 'Strength and conditioning', available: false },
-  { id: 'jinwoo', title: 'Sung Jinwoo', series: 'Solo Leveling', focus: 'Hunter missions and balanced training', available: false },
+  { id: 'goku', title: 'Goku', series: 'Dragon Ball', focus: 'Strength and conditioning', available: true },
+  { id: 'jinwoo', title: 'Sung Jinwoo', series: 'Solo Leveling', focus: 'Hunter missions and balanced training', available: true },
 ])
 
 export const GOALS = Object.freeze(['general', 'strength', 'endurance', 'conditioning'])
@@ -12,7 +12,7 @@ export const EXPERIENCE = Object.freeze(['beginner', 'intermediate', 'advanced']
 export function profileDraft(saved) {
   const p = saved && typeof saved === 'object' ? saved : {}
   return {
-    path: 'saitama',
+    path: ANIME_PATHS.some(x => x.id === p.path) ? p.path : 'saitama',
     ageYears: p.ageYears == null ? '' : String(p.ageYears),
     heightCm: p.heightCm == null ? '' : String(p.heightCm),
     goal: GOALS.includes(p.goal) ? p.goal : 'general',
@@ -33,7 +33,7 @@ function optionalNumber(raw, min, max, label, errors) {
 
 export function validateAnimeProfile(input) {
   const errors = []
-  if (input?.path !== 'saitama') errors.push('Only Saitama is available in this phase.')
+  if (!ANIME_PATHS.some(x => x.id === input?.path && x.available)) errors.push('Choose an available training path.')
   if (!GOALS.includes(input?.goal)) errors.push('Choose a valid fitness goal.')
   if (!EXPERIENCE.includes(input?.experience)) errors.push('Choose a valid experience level.')
   const ageYears = optionalNumber(input?.ageYears, 18, 100, 'Age', errors)
@@ -45,7 +45,7 @@ export function validateAnimeProfile(input) {
     ok: true,
     value: {
       v: 2,
-      path: 'saitama',
+      path: input.path,
       ageYears,
       heightCm,
       goal: input.goal,

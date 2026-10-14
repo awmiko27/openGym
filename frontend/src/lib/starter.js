@@ -9,6 +9,7 @@ import { uid } from './format.js'
 import { EXIDX } from './exercises.js'
 import { eqAvailable, ALL_EQUIPMENT } from './equipment.js'
 import { buildSaitamaFoundation } from './anime/saitama.js'
+import { buildGokuFoundation, buildJinwooFoundation } from './anime/character-paths.js'
 
 const PPL = [
   ['push', 'Push Day', 'barbell', [['0025', 4, 8], ['0047', 3, 10], ['0426', 3, 10], ['0334', 3, 12], ['0241', 3, 12], ['0251', 3, 10]]],
@@ -126,6 +127,14 @@ const fitRoutines = (routines, equipment) => {
 // plan is fitted to it first, and `fit` reports how many exercises that swapped or dropped.
 export const buildStarterPlan = (id, equipment, animeProfile) => {
 if (id === 'saitama-foundation') return buildSaitamaFoundation({
+  catalogue: Object.values(EXIDX), uid, equipment,
+  isAvailable: eqAvailable, profile: animeProfile,
+})
+if (id === 'goku-foundation') return buildGokuFoundation({
+  catalogue: Object.values(EXIDX), uid, equipment,
+  isAvailable: eqAvailable, profile: animeProfile,
+})
+if (id === 'jinwoo-foundation') return buildJinwooFoundation({
   catalogue: Object.values(EXIDX), uid, equipment,
   isAvailable: eqAvailable, profile: animeProfile,
 })
