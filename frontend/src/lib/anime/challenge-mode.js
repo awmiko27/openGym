@@ -11,6 +11,59 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const dayValue = (week, day) => Object.prototype.hasOwnProperty.call(week || {}, day)
   ? week[day] : undefined
 
+// Anime challenge XP only understands repetition sets. openGym treats catalogue
+// cardio exercises as time/speed even when a routine provides `sets`/`reps`.
+const isRepRow = (row, isCardioExercise) => Boolean(row?.id) &&
+  Number.isInteger(Number(row.sets)) && Number(row.sets) > 0 &&
+  Number.isFinite(Number(row.reps)) && Number(row.reps) > 0 &&
+  !['cardio', 'time'].includes(row.mode) && !isCardioExercise(row.id)
+
+/** Determine whether the NEXT, still-uncredited trial contains a movement that
+ * openGym cannot log as rep sets. This is read-only and does not affect history.
+ */
+function nextTrialRepair(state, isCardioExercise) {
+  const mode = state?.animeAscension?.challengeMode
+  if (mode?.v !== 2 || state.active || typeof isCardioExercise !== 'function') return null
+  const progress = activeChallengeProgress(state)
+  if (!progress || progress.finished) return null
+  const id = mode.routineIds?.[progress.count]
+  if (!id) return null
+  // Do not touch another block or an individually edited, unassigned routine.
+  const assigned = Object.values(mode.installed || {}).some(ids =>
+    Array.isArray(ids) && ids.some(x => String(x) === String(id)))
+  if (!assigned) return null
+  const index = state.routines?.findIndex(r => String(r.id) === String(id)) ?? -1
+  if (index < 0) return null
+  const routine = state.routines[index]
+  const safe = (routine.ex || []).filter(row => isRepRow(row, isCardioExercise))
+  if (safe.length === routine.ex?.length) return null
+  return { mode, progress, index, routine, safe }
+}
+
+export const challengeNeedsRepRepair = (state, isCardioExercise) =>
+  nextTrialRepair(state, isCardioExercise) !== null
+
+/** Repair only the next not-yet-credited trial, preserving its ID and benchmark
+ * exercise. Earlier workouts and their immutable XP proof are not rewritten.
+ * Caller must run this through the openGym store update, with no active workout.
+ */
+export function repairNextChallengeRoutine(state, isCardioExercise) {
+  const pending = nextTrialRepair(state, isCardioExercise)
+  if (!pending) return { changed: false }
+  const { mode, progress, index, routine, safe } = pending
+  if (!safe.length) throw new Error('Trial has no rep-based movements left. Cancel and restart the challenge.')
+  const history = state.animeAscension?.challenges?.[mode.path] || []
+  const attempt = history.findLast(a => a.id === mode.id && a.startedAt === mode.startedAt)
+  const anchor = attempt?.objective?.anchorId
+  const checkpoint = progress.count + 1 === attempt?.objective?.checkpointAt
+  const final = progress.count + 1 === progress.sessions
+  if ((progress.count === 0 || checkpoint || final) &&
+      !safe.some(row => String(row.id) === String(anchor)))
+    throw new Error('The assessment movement is not rep-based. Cancel and restart this trial.')
+  state.routines[index] = { ...routine, ex: safe }
+  return { changed: true, removed: routine.ex.length - safe.length, trial: progress.count + 1 }
+}
+
 export function challengePlan(state, id, { catalogue, equipment, isAvailable, uid, now = Date.now() }) {
   const definition = CHALLENGES[id]
   if (!definition || state?.active || state?.animeAscension?.challengeMode ||
@@ -32,6 +85,11 @@ export function challengePlan(state, id, { catalogue, equipment, isAvailable, ui
   const selected = Array.from({ length: count }, (_, i) => (firstIndex + i) % base.routines.length)
   if (selected.some(i => !base.routines[i] || !base.schedule[i])) return null
   const bump = tier === 2 ? 2 : tier === 1 ? 1 : 0
+  // The foundation catalogue can contain cardio-coded movements (notably
+  // mountain climbers). Reject them before minting a challenge, or its saved
+  // workout will have time/speed rows and no Anime Ascension proof snapshot.
+  const cardioIds = new Set(catalogue.filter(ex => ex?.bp === 'cardio').map(ex => String(ex.id)))
+  const repReady = row => isRepRow(row, id => cardioIds.has(String(id)))
   // Every session receives its own routine ID and prescription. Fixed Week
   // displays only one block at a time; repeating templates must never reveal
   // the checkpoint or final assessment before their actual session.
@@ -39,7 +97,7 @@ export function challengePlan(state, id, { catalogue, equipment, isAvailable, ui
     const original = base.routines[selected[index % count]]
     return { ...original, id: uid(),
       name: `${original.name} · Trial ${id}`,
-      ex: original.ex.map(row => ({ ...row,
+      ex: original.ex.filter(repReady).map(row => ({ ...row,
         sets: Math.min(4, Number(row.sets) + (index === definition.sessions - 1 && tier > 0 ? 1 : 0)),
         reps: Math.min(20, Number(row.reps) + bump + Math.min(2, Math.floor(index / count))),
       })),

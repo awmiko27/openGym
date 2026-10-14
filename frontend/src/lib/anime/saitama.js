@@ -27,7 +27,7 @@ const slots = {
 
 function findExercise(catalogue, patterns, eligible, equipmentType = bodyweight, except = new Set()) {
   const valid = catalogue.filter(ex => ex?.id && ex?.n && !except.has(ex.id) &&
-    equipmentType(ex) && !unsafeAdvanced.test(normal(ex.n)) &&
+    equipmentType(ex) && ex.bp !== 'cardio' && !unsafeAdvanced.test(normal(ex.n)) &&
     !notRepBased.test(normal(ex.n)) && eligible(ex))
   for (const pattern of patterns) {
     const matched = valid.filter(ex => pattern.test(normal(ex.n)))

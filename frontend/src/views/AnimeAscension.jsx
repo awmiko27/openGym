@@ -8,7 +8,7 @@ import { scheduleModeOf } from '../lib/rotation.js'
 import { ANIME_PATHS, profileDraft, validateAnimeProfile } from '../lib/anime/profile.js'
 import { deriveTrainingArc, startTrainingArc } from '../lib/anime/training.js'
 import { challengeTierStates } from '../lib/anime/challenges.js'
-import { reconcileChallengeReturn, activeChallengeProgress } from '../lib/anime/challenge-mode.js'
+import { reconcileChallengeReturn, activeChallengeProgress, challengeNeedsRepRepair, repairNextChallengeRoutine } from '../lib/anime/challenge-mode.js'
 import { CANON_PROGRAMS } from '../lib/anime/canon-programs.js'
 import { createAnimePlanPreview } from '../lib/anime/plan-preview.js'
 import { reconcileAnimeSchedule } from '../lib/anime/schedule.js'
@@ -63,6 +63,21 @@ export default function AnimeAscension() {
       setModeSyncError(error.message || 'Could not update the challenge calendar.')
     }
   }, [mode, S.active, S.workouts, update])
+  // Older challenge templates could contain a catalogue cardio exercise in a
+  // rep-based trial. Repair only the next uncredited routine, never workout
+  // history or a running session. This also works with the temporary QA mode.
+  useEffect(() => {
+    if (!mode || S.active) return
+    const cardio = id => EXIDX[id]?.bp === 'cardio'
+    if (!challengeNeedsRepRepair(S, cardio)) return
+    try {
+      update(st => repairNextChallengeRoutine(st, cardio))
+      setModeSyncError('')
+    } catch (error) {
+      console.error('Anime Ascension trial repair:', error)
+      setModeSyncError(error.message || 'Could not repair the next trial workout.')
+    }
+  }, [mode, S.active, S.routines, S.workouts, update])
   const design = CANON_PROGRAMS[draft.path]
   const program = S.animeAscension?.programs?.[draft.path]
   const arc = deriveTrainingArc(S.workouts, draft.path, program)

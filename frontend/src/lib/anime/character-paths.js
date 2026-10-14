@@ -30,7 +30,7 @@ const CANDIDATES = {
 // Never use permissive substitutions that bypass an equipment requirement.
 function choose(catalogue, key, allowed, equipmentType = body, except = new Set()) {
   const candidates = catalogue.filter(ex => ex?.id && ex?.n && !except.has(ex.id) &&
-    equipmentType(ex) && !risky.test(normalize(ex.n)) && !nonReps.test(normalize(ex.n)) && allowed(ex))
+    equipmentType(ex) && ex.bp !== 'cardio' && !risky.test(normalize(ex.n)) && !nonReps.test(normalize(ex.n)) && allowed(ex))
   for (const pattern of CANDIDATES[key]) {
     const match = candidates.filter(ex => pattern.test(normalize(ex.n)))
       .sort((a, b) => String(a.id).localeCompare(String(b.id)))[0]
