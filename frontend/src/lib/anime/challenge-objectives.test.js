@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CHALLENGES, challengeBonuses, challengeTierStates, deriveChallenge } from './challenges.js'
-import { challengePlan, activateChallenge, activeChallengeProgress, exitChallenge } from './challenge-mode.js'
+import { challengePlan, activateChallenge, activeChallengeProgress, exitChallenge, advanceChallengeBlock, reconcileChallengeReturn } from './challenge-mode.js'
 import { animeSessionSnapshot, animeSessionProof, isQualifiedAnimeWorkout } from './rpg.js'
 
 const catalogue = [
@@ -31,9 +31,9 @@ function complete(state, routine, date, extra = {}) {
   return w
 }
 function dayFor(plan, i, extraWeeks = 0) {
-  const row = plan.schedule[i % plan.routines.length]
+  const row = plan.schedule[i]
   const date = new Date(plan.startedAt)
-  date.setDate(date.getDate() + (row.day - plan.startDay + 7) % 7 + 7 * (Math.floor(i / plan.routines.length) + extraWeeks))
+  date.setDate(date.getDate() + (row.day - plan.startDay + 7) % 7 + 7 * (Math.floor(i / plan.cycleSize) + extraWeeks))
   date.setHours(15, 0, 0, 0)
   return date.getTime()
 }
@@ -85,5 +85,49 @@ describe('Character-specific challenge assessments', () => {
     expect(deriveChallenge([], old)?.count).toBe(0)
     const v2 = { v: 2, id: 'saitama-7', startedAt: Date.UTC(2026, 9, 1) }
     expect(deriveChallenge([], v2)?.count).toBe(0)
+  })
+})
+
+
+describe('MVP staged training blocks', () => {
+  it('never displays a final assessment prematurely and advances only after a full block', () => {
+    for (const path of ['saitama', 'goku', 'jinwoo']) {
+      const state = stateFor(path)
+      for (const days of [7, 14, 30]) {
+        const start = new Date(2026, 9, 14 + (days === 14 ? 15 : days === 30 ? 35 : 0), 12).getTime()
+        const plan = challengePlan(state, `${path}-${days}`, options(start))
+        expect(plan).toBeTruthy()
+        expect(plan.routines).toHaveLength(CHALLENGES[`${path}-${days}`].sessions)
+        expect(new Set(plan.routines.map(r => r.id)).size).toBe(plan.routines.length)
+        const bossId = plan.routines.at(-1).id
+        expect(plan.challengeWeek[plan.schedule[0].day]).toEqual([plan.routines[0].id])
+        if (days !== 7) expect(Object.values(plan.challengeWeek).flat()).not.toContain(bossId)
+        activateChallenge(state, plan)
+        for (let i = 0; i < plan.routines.length; i++) {
+          expect(state.week[plan.schedule[i].day]).toContain(plan.routines[i].id)
+          complete(state, plan.routines[i], dayFor(plan, i))
+          if ((i + 1) % plan.cycleSize === 0 && i < plan.routines.length - 1) {
+            expect(reconcileChallengeReturn(state).action).toBe('advanced')
+            expect(reconcileChallengeReturn(state).action).toBe('none')
+          }
+        }
+        expect(activeChallengeProgress(state).finished).toBe(true)
+        expect(reconcileChallengeReturn(state).action).toBe('completed')
+        expect(reconcileChallengeReturn(state).action).toBe('none')
+        expect(state.animeAscension.lastChallengeRestore.completed).toBe(true)
+        expect(state.routines.map(r => r.id)).toEqual(['regular'])
+      }
+    }
+  })
+  it('blocks schedule changes during an active workout and preserves manual edits', () => {
+    const state = stateFor('saitama')
+    // Cover early exit while a staged plan is active.
+    const plan = challengePlan(state, 'saitama-7', options(new Date(2026, 9, 14, 12).getTime()))
+    activateChallenge(state, plan)
+    state.active = { id: 'session-running' }
+    expect(() => exitChallenge(state, { cancel: true })).toThrow()
+    state.active = null
+    expect(exitChallenge(state, { cancel: true }).completed).toBe(false)
+    expect(state.animeAscension.challengeMode).toBeNull()
   })
 })

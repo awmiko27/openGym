@@ -32,13 +32,20 @@ export function challengePlan(state, id, { catalogue, equipment, isAvailable, ui
   const selected = Array.from({ length: count }, (_, i) => (firstIndex + i) % base.routines.length)
   if (selected.some(i => !base.routines[i] || !base.schedule[i])) return null
   const bump = tier === 2 ? 2 : tier === 1 ? 1 : 0
-  const routines = selected.map((i, index) => ({ ...base.routines[i],
-    name: `${base.routines[i].name} · Trial ${id}`,
-    ex: base.routines[i].ex.map(row => ({ ...row,
-      sets: Math.min(4, Number(row.sets) + (index === selected.length - 1 && tier > 0 ? 1 : 0)),
-      reps: Math.min(20, Number(row.reps) + bump + (index > 0 ? 1 : 0)),
-    })),
-  }))
+  // Every session receives its own routine ID and prescription. Fixed Week
+  // displays only one block at a time; repeating templates must never reveal
+  // the checkpoint or final assessment before their actual session.
+  const routines = Array.from({ length: definition.sessions }, (_, index) => {
+    const original = base.routines[selected[index % count]]
+    return { ...original, id: uid(),
+      name: `${original.name} · Trial ${id}`,
+      ex: original.ex.map(row => ({ ...row,
+        sets: Math.min(4, Number(row.sets) + (index === definition.sessions - 1 && tier > 0 ? 1 : 0)),
+        reps: Math.min(20, Number(row.reps) + bump + Math.min(2, Math.floor(index / count))),
+      })),
+    }
+  })
+  if (new Set(routines.map(r => String(r.id))).size !== routines.length) return null
   if (routines.some(r => !r.ex?.length)) return null
 
   // An assessment is performed at the beginning and the final session. For
@@ -52,8 +59,8 @@ export function challengePlan(state, id, { catalogue, equipment, isAvailable, ui
   const minGain = Math.max(2, Math.ceil(baselineTotal * [0.08, 0.10, 0.12][tier]))
   const checkpointIndex = tier === 0 ? null : tier === 1 ? 3 : path === 'goku' ? 6 : 7
   const lastIndex = definition.sessions - 1
-  const finalTemplate = lastIndex % routines.length
-  const checkpointTemplate = checkpointIndex === null ? null : checkpointIndex % routines.length
+  const finalTemplate = lastIndex
+  const checkpointTemplate = checkpointIndex
   if (checkpointTemplate === finalTemplate || checkpointTemplate === 0 || finalTemplate === 0) return null
   const addAssessment = (routineIndex, gain) => {
     const routine = routines[routineIndex]
@@ -86,15 +93,21 @@ export function challengePlan(state, id, { catalogue, equipment, isAvailable, ui
   const startedAt = now
   const startDay = new Date(startedAt).getDay() // openGym's weekday indices, local time
   const originalFirstDay = base.schedule[selected[0]].day
-  const schedule = selected.map((i, j) => ({
-    day: (startDay + (base.schedule[i].day - originalFirstDay + 7) % 7) % 7,
-    routineId: routines[j].id,
-  }))
-  if (new Set(schedule.map(s => s.day)).size !== schedule.length) return null
-  const challengeWeek = Object.fromEntries(schedule.map(s => [s.day, [s.routineId]]))
-  return { id, path, startedAt, startDay, routines, schedule, objective,
+  const schedule = routines.map((routine, j) => {
+    const i = selected[j % count]
+    return {
+      day: (startDay + (base.schedule[i].day - originalFirstDay + 7) % 7) % 7,
+      routineId: routine.id,
+      session: j + 1,
+    }
+  })
+  const initialSchedule = schedule.slice(0, count)
+  if (new Set(initialSchedule.map(s => s.day)).size !== count) return null
+  const challengeWeek = Object.fromEntries(initialSchedule.map(s => [s.day, [s.routineId]]))
+  return { id, path, startedAt, startDay, routines, schedule, cycleSize: count, objective,
     before: weekCopy(state.week), challengeWeek,
     previousPath: state.animeAscension?.path || path }
+
 }
 
 /** A transactional store mutation: caller passes a prepared plan only after
@@ -120,18 +133,56 @@ export function activateChallenge(state, plan) {
   state.animeAscension = {
     ...aa, path: plan.path,
     challenges: { ...histories, [plan.path]: [...history, entry] },
-    challengeMode: { v: 1, id: plan.id, path: plan.path, startedAt: plan.startedAt,
+    challengeMode: { v: 2, id: plan.id, path: plan.path, startedAt: plan.startedAt,
       previousPath: plan.previousPath, before: weekCopy(plan.before), startDay: plan.startDay,
-      installed: weekCopy(plan.challengeWeek), routineIds: plan.routines.map(r => r.id) },
+      installed: weekCopy(plan.challengeWeek), routineIds: plan.routines.map(r => r.id),
+      // Mode v2 is staged: one Fixed Week block is exposed at a time.
+      // Legacy v1 receipts keep their original, repeating routine behavior.
+      cycleSize: plan.cycleSize, blockIndex: 0,
+      schedule: structuredClone(plan.schedule) },
   }
 }
 
 export function activeChallengeProgress(state) {
   const mode = state?.animeAscension?.challengeMode
-  if (mode?.v !== 1) return null
+  if (![1, 2].includes(mode?.v)) return null
   const history = state.animeAscension?.challenges?.[mode.path] || []
   const entry = history.findLast(x => x.id === mode.id && x.startedAt === mode.startedAt && [2, 3].includes(x.v))
   return entry ? deriveChallenge(state.workouts, entry) : null
+}
+
+/** Advance a new (v2) challenge to its next block after all currently
+ * scheduled sessions have been verified. Call on returning to Anime Ascension,
+ * never during an active workout. This updates only the temporary calendar;
+ * the user's pre-challenge schedule receipt is unchanged.
+ */
+export function advanceChallengeBlock(state) {
+  const mode = state?.animeAscension?.challengeMode
+  if (mode?.v !== 2 || state.active) return { changed: false, reason: 'inactive-or-legacy' }
+  const progress = activeChallengeProgress(state)
+  if (!progress || progress.finished) return { changed: false, reason: 'finished' }
+  const count = Number(mode.cycleSize)
+  if (!Number.isInteger(count) || count < 3 || !Array.isArray(mode.schedule) ||
+      mode.schedule.length !== mode.routineIds.length) throw new Error('Invalid challenge block receipt.')
+  const nextBlockIndex = Math.floor(progress.count / count)
+  if (nextBlockIndex <= mode.blockIndex || progress.count % count !== 0)
+    return { changed: false, reason: 'not-ready' }
+  if (nextBlockIndex !== mode.blockIndex + 1) throw new Error('Unexpected challenge progression jump.')
+  const nextRows = mode.schedule.slice(nextBlockIndex * count, (nextBlockIndex + 1) * count)
+  if (!nextRows.length || new Set(nextRows.map(row => row.day)).size !== nextRows.length)
+    throw new Error('Invalid next challenge schedule.')
+  // A user may have edited Fixed Week during the challenge. Do not erase those
+  // edits or advance into a misleading/partially installed block.
+  for (let day = 0; day < 7; day++) {
+    if (!same(dayValue(state.week, day), dayValue(mode.installed, day)))
+      throw new Error('The challenge calendar was changed manually. Restore its scheduled days before advancing, or cancel the challenge.')
+  }
+  const installed = Object.fromEntries(nextRows.map(row => [row.day, [row.routineId]]))
+  state.week = weekCopy(installed)
+  state.animeAscension = { ...state.animeAscension, challengeMode: {
+    ...mode, blockIndex: nextBlockIndex, installed: weekCopy(installed),
+  } }
+  return { changed: true, block: nextBlockIndex + 1, firstSession: nextBlockIndex * count + 1 }
 }
 
 /** Restore the saved calendar and delete only temporary challenge routines.
@@ -183,6 +234,27 @@ export function exitChallenge(state, { cancel = false, at = Date.now() } = {}) {
   }
   state.week = week
   state.animeAscension = { ...aa, path: mode.previousPath, challengeMode: null, challenges,
-    lastChallengeRestore: { id: mode.id, cancelled: cancel && !progress?.finished, preservedDays, at } }
+    lastChallengeRestore: { id: mode.id, cancelled: cancel && !progress?.finished,
+      completed: !cancel && Boolean(progress?.finished), preservedDays, at } }
   return { preservedDays, completed: Boolean(progress?.finished) }
+}
+
+/** The single return-to-Anime-Ascension transition. Safe to call more than
+ * once (React effect replay, refresh or a repeated store update). No workout
+ * history or reward balance is altered by this reconciliation.
+ */
+export function reconcileChallengeReturn(state) {
+  const mode = state?.animeAscension?.challengeMode
+  if (!mode || state.active) return { action: 'none' }
+  const progress = activeChallengeProgress(state)
+  if (progress?.finished) {
+    const previousPath = mode.previousPath
+    const receipt = exitChallenge(state)
+    return { action: 'completed', previousPath, ...receipt }
+  }
+  if (mode.v === 2) {
+    const result = advanceChallengeBlock(state)
+    return { action: result.changed ? 'advanced' : 'none', ...result }
+  }
+  return { action: 'none' }
 }

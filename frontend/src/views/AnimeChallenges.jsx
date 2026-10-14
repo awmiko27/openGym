@@ -85,7 +85,7 @@ export default function AnimeChallenges({ path, onExit }) {
       <p className="aa-note">Your original calendar and training week are saved. You cannot load another program until you leave challenge mode.</p>
       {mode.path === path && Number.isInteger(mode.startDay) && <p className="aa-note">Day 1: {weekdays[mode.startDay]}. Trial workouts follow the challenge start day, not the usual weekly schedule.</p>}
       {mode.path === path && <>
-        <p className="aa-note">{activeProgress?.count || 0} / {activeProgress?.sessions || 0} verified challenge workouts</p>
+        <p className="aa-note">{activeProgress?.count || 0} / {activeProgress?.sessions || 0} verified challenge workouts{mode.v === 2 ? ` · Training block ${mode.blockIndex + 1}` : ''}</p>
         {activeProgress && !activeProgress.objective && <p className="aa-note">This challenge was started before benchmark assessments. It keeps its original completion rules; cancel and restart an eligible tier to use the new tests.</p>}
         {activeProgress?.objective && <div className="aa-mode-assessment" aria-label="Challenge assessment progress">
           <strong>{activeProgress.objective.focus}</strong>
@@ -134,16 +134,15 @@ export default function AnimeChallenges({ path, onExit }) {
                 <p className="aa-note"><strong>Challenge objective:</strong> {stage.focus} · {preview.objective.exerciseName}</p>
                 <p className="aa-note">Opening baseline: {preview.objective.baselineTotal} planned reps · Final assessment: {preview.objective.finalTotal} planned reps (increase at least {preview.objective.minGain}).{preview.objective.checkpointAt ? ` Midway checkpoint at workout ${preview.objective.checkpointAt}.` : ''}</p>
                 {Array.from({ length: stage.sessions }, (_, index) => {
-                  const position = index % preview.schedule.length
-                  const day = preview.schedule[position]
-                  const r = preview.routines.find(x => x.id === day.routineId)
-                  const dayNumber = trialDay(day.day, preview.startDay) + 7 * Math.floor(index / preview.schedule.length)
+                  const day = preview.schedule[index]
+                  const r = preview.routines[index]
+                  const dayNumber = trialDay(day.day, preview.startDay) + 7 * Math.floor(index / preview.cycleSize)
                   const label = index === 0 ? 'Baseline' : index + 1 === preview.objective.checkpointAt ? 'Checkpoint' : index === stage.sessions - 1 ? 'Final assessment' : 'Training'
                   return <details key={index}><summary>Session {index + 1} · Day {dayNumber} · {weekdays[day.day]} · {label} · {r?.name.split(' · Trial ')[0]}</summary>
                     <ul>{r?.ex.map(ex => <li key={ex.id}>{EXIDX[ex.id]?.n || 'Exercise'} · {ex.sets} × {ex.reps}</li>)}</ul>
                   </details>
                 })}
-                <p className="aa-note">Day 1 is the day you press Start. Your existing weekly schedule will be saved and temporarily replaced; days without a trial workout are for recovery.</p>
+                <p className="aa-note">Day 1 is the day you press Start. Each session has its own prescription. Only the current training block is placed in Fixed Week; after you complete that block, return here to load the next one. Other days allow recovery.</p>
               </div>}
               {previewId === stage.id && !preview && <p className="aa-note">Preview unavailable. Please check the exercise catalog and openGym equipment settings.</p>}
               <button className="btn primary" type="button" disabled={Boolean(S.active)} onClick={() => start(stage.id)}>Start {stage.days}-day challenge</button>

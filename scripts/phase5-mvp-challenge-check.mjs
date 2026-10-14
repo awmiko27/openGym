@@ -1,7 +1,7 @@
 // Offline, real-engine checks. Does not read or mutate a user's openGym files.
 import assert from 'node:assert/strict'
 import { CHALLENGES, challengeTierStates, challengeBonuses, deriveChallenge } from '../frontend/src/lib/anime/challenges.js'
-import { challengePlan, activateChallenge, exitChallenge, activeChallengeProgress } from '../frontend/src/lib/anime/challenge-mode.js'
+import { challengePlan, activateChallenge, exitChallenge, activeChallengeProgress, advanceChallengeBlock, reconcileChallengeReturn } from '../frontend/src/lib/anime/challenge-mode.js'
 import { animeSessionSnapshot, animeSessionProof, isQualifiedAnimeWorkout } from '../frontend/src/lib/anime/rpg.js'
 
 const catalogue = [
@@ -33,8 +33,8 @@ function workout(state,routine,at,{boostExercise=null,boostReps=0}={}) {
   return saved
 }
 function dayOfSession(plan,index,{extraWeeks=0}={}) {
-  const row=plan.schedule[index%plan.routines.length]
-  const weeks=Math.floor(index/plan.routines.length)+extraWeeks
+  const row=plan.schedule[index]
+  const weeks=Math.floor(index/plan.cycleSize)+extraWeeks
   const delta=(row.day-plan.startDay+7)%7+weeks*7
   const date=new Date(plan.startedAt)
   date.setDate(date.getDate()+delta)
@@ -42,7 +42,9 @@ function dayOfSession(plan,index,{extraWeeks=0}={}) {
   return date.getTime()
 }
 function perform(state,plan,ix,override={}) {
-  const saved=workout(state,plan.routines[ix%plan.routines.length],dayOfSession(plan,ix,override),override)
+  const row=plan.schedule[ix]
+  assert.ok(state.week[row.day]?.includes(plan.routines[ix].id),`Session ${ix+1} must be visible in Fixed Week`)
+  const saved=workout(state,plan.routines[ix],dayOfSession(plan,ix,override),override)
   state.workouts.push(saved)
   return saved
 }
@@ -62,21 +64,37 @@ for (const path of paths) {
     assert.equal(plan.schedule[0].day,plan.startDay)
     assert.ok(plan.objective.exerciseName)
     assert.ok(plan.objective.finalTotal>plan.objective.baselineTotal)
-    assert.equal(plan.routines.length,length===7?3:length===14?4:path==='goku'?4:5)
+    assert.equal(plan.routines.length,CHALLENGES[`${path}-${length}`].sessions)
+    assert.equal(plan.cycleSize,length===7?3:length===14?4:path==='goku'?4:5)
+    assert.equal(new Set(plan.routines.map(r=>r.id)).size,plan.routines.length)
+    assert.equal(Object.keys(plan.challengeWeek).length,plan.cycleSize)
+    assert.ok(!Object.values(plan.challengeWeek).flat().includes(plan.schedule.at(-1).routineId) || length===7,
+      'Final boss routine must be hidden until its block')
     firstFocus.push(`${path}-${length}:${plan.objective.exerciseName}`)
     activateChallenge(state,plan)
     assert.equal(state.animeAscension.challenges[path].at(-1).v,3)
     for (let i=0;i<CHALLENGES[`${path}-${length}`].sessions;i++) {
+      if (i < Math.floor((plan.routines.length - 1) / plan.cycleSize) * plan.cycleSize)
+        assert.ok(!Object.values(state.week).flat().includes(plan.routines.at(-1).id),
+          `${path}-${length}: boss only appears in the final training block`)
       perform(state,plan,i)
       const progress=activeChallengeProgress(state)
       assert.equal(progress.count,i+1,`${path}-${length}: workout ${i+1} must count`)
       if (i===0) assert.ok(progress.objective.baseline>=plan.objective.baselineTotal)
       if (i+1===plan.objective.checkpointAt) assert.ok(progress.objective.checkpointScore)
+      if ((i+1)%plan.cycleSize===0 && i+1<plan.routines.length) {
+        const advanced=reconcileChallengeReturn(state)
+        assert.equal(advanced.action,'advanced',`${path}-${length} must advance after block`)
+        assert.equal(state.week[plan.schedule[i+1].day][0],plan.schedule[i+1].routineId)
+        assert.equal(advanceChallengeBlock(state).changed,false,'Idempotent block transition')
+      }
     }
     const result=activeChallengeProgress(state)
     assert.equal(result.finished,true)
     assert.ok(result.objective.finalScore>=result.objective.finalTarget)
-    assert.equal(exitChallenge(state).completed,true)
+    assert.equal(reconcileChallengeReturn(state).action,'completed')
+    assert.equal(reconcileChallengeReturn(state).action,'none','Auto-restoration must be idempotent')
+    assert.equal(state.animeAscension.lastChallengeRestore.completed,true)
     assert.deepEqual(state.week,original)
     assert.deepEqual(state.routines.map(r=>r.id),['original'])
     assert.equal(challengeTierStates(state.workouts,path,state.animeAscension.challenges[path])[tier].status,'completed')
@@ -98,6 +116,8 @@ assert.ok(new Set(firstFocus).size===9)
   const final=perform(state,plan,2)
   assert.equal(activeChallengeProgress(state).count,2)
   assert.equal(activeChallengeProgress(state).finished,false)
+  assert.equal(reconcileChallengeReturn(state).action,'none',
+    'Failed final attempt must not auto-restore the training arc')
   // Finishing a regular workout is still true: only the challenge bonus is withheld.
   assert.equal(isQualifiedAnimeWorkout(final),true)
   assert.throws(()=>exitChallenge(state),/Finish the challenge/)
@@ -107,4 +127,4 @@ assert.ok(new Set(firstFocus).size===9)
   assert.equal(exitChallenge(state).completed,true)
   assert.equal(challengeBonuses(state.workouts,state.animeAscension.challenges).saitama,60)
 }
-console.log('MVP challenge checks passed: 9 objective programs, tier gates, benchmarks, checkpoints, boss trials, schedule restoration, failed final retries, and XP.')
+console.log('MVP challenge checks passed: 9 per-session programs, staged calendar advances, auto-restoration, tier gates, checkpoints, boss trials, retry and XP.')

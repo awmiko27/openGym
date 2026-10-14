@@ -8,7 +8,7 @@ import { scheduleModeOf } from '../lib/rotation.js'
 import { ANIME_PATHS, profileDraft, validateAnimeProfile } from '../lib/anime/profile.js'
 import { deriveTrainingArc, startTrainingArc } from '../lib/anime/training.js'
 import { challengeTierStates } from '../lib/anime/challenges.js'
-import { activeChallengeProgress, exitChallenge } from '../lib/anime/challenge-mode.js'
+import { reconcileChallengeReturn, activeChallengeProgress } from '../lib/anime/challenge-mode.js'
 import { CANON_PROGRAMS } from '../lib/anime/canon-programs.js'
 import { createAnimePlanPreview } from '../lib/anime/plan-preview.js'
 import { reconcileAnimeSchedule } from '../lib/anime/schedule.js'
@@ -36,16 +36,32 @@ export default function AnimeAscension() {
   const [page, setPage] = useState('dashboard')
   const [errors, setErrors] = useState([])
   const [loadingError, setLoadingError] = useState('')
+  const [modeSyncError, setModeSyncError] = useState('')
   const mode = S.animeAscension?.challengeMode
-  // Restore on returning to /anime after a verified completion. A running
-  // workout still blocks all calendar changes.
+  // Reconcile a saved challenge session when the dashboard is revisited.
+  // No mutations while openGym has an active workout. Repeated calls are safe.
   useEffect(() => {
-    if (!mode || S.active || !activeChallengeProgress(S)?.finished) return
+    if (!mode || S.active) return
+    const progress = activeChallengeProgress(S)
+    const count = progress?.count || 0
+    const shouldAdvance = mode.v === 2 && Number.isInteger(mode.cycleSize) && mode.cycleSize > 0 &&
+      count > 0 && count % mode.cycleSize === 0 && Math.floor(count / mode.cycleSize) > mode.blockIndex
+    if (!progress?.finished && !shouldAdvance) return // avoid unnecessary store updates
     try {
-      update(st => { if (!st.active && st.animeAscension?.challengeMode?.startedAt === mode.startedAt) exitChallenge(st) })
-      setDraft(old => ({ ...old, path: mode.previousPath }))
+      let transition = { action: 'none' }
+      update(st => {
+        if (st.animeAscension?.challengeMode?.startedAt !== mode.startedAt ||
+            st.animeAscension?.challengeMode?.id !== mode.id) return
+        transition = reconcileChallengeReturn(st)
+      })
+      if (transition.action === 'completed') {
+        setDraft(old => ({ ...old, path: transition.previousPath }))
+      }
+      setModeSyncError('')
+    } catch (error) {
+      console.error('Anime Ascension challenge transition:', error)
+      setModeSyncError(error.message || 'Could not update the challenge calendar.')
     }
-    catch (error) { console.error('Challenge return to training arc:', error) }
   }, [mode, S.active, S.workouts, update])
   const design = CANON_PROGRAMS[draft.path]
   const program = S.animeAscension?.programs?.[draft.path]
@@ -124,6 +140,8 @@ export default function AnimeAscension() {
           <p>Choose your character and see what's next.</p></div>
         <button className="btn" type="button" onClick={() => navigate('/anime/rpg')}>Hero status ↗</button>
       </header>
+      {modeSyncError && <p className="aa-redesign-caution" role="alert">{modeSyncError}</p>}
+      {S.animeAscension?.lastChallengeRestore?.completed && <p role="status" className="aa-challenge-success">Challenge completed! Your training arc and original schedule have been restored. The challenge badge and bonus XP appear in your Hero Status.</p>}
       {mode && <div className="aa-mode-banner" role="status">
         <strong>Special challenge mode · {CANON_PROGRAMS[mode.path]?.title}</strong>
         <p>Your training arc is paused. Finish or cancel the challenge to restore your normal plan.</p>
@@ -204,6 +222,7 @@ export default function AnimeAscension() {
     </div>}
     {page === 'challenges' && <div className="aa-redesign-progress-page">
       <button type="button" className="btn" onClick={() => setPage('dashboard')}>← Back to dashboard</button>
+      {modeSyncError && <p role="alert" className="aa-redesign-caution">{modeSyncError}</p>}
       <AnimeChallenges path={draft.path} onExit={path => set('path', path)} />
     </div>}
     <p className="aa-credits">Uses openGym for equipment, exercise demonstrations, and workout tracking. Character programs are noncommercial fan adaptations.</p>
