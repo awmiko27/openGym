@@ -1,0 +1,24 @@
+/* Scoped RPG widgets — inherits openGym's typography and theme tokens. */
+.aa-rpg-stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.aa-rpg-stats>div { background: var(--surface-3); border: 1px solid var(--sep); padding: 12px; border-radius: 12px; display: grid; gap: 6px; }
+.aa-rpg-stats strong { font-size: 17px; overflow-wrap: anywhere; }
+.aa-rpg-stats small, .aa-rpg-awards small { color: var(--label-2); font-size: 11px; }
+.aa-rpg-bar { width: 100%; height: 8px; margin-top: 9px; accent-color: var(--acc); }
+.aa-rpg-record { padding: 12px 0; border-bottom: 1px solid var(--sep); }
+.aa-rpg-record:last-child { border-bottom: 0; }
+.aa-rpg-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.aa-rpg-between span { color: var(--label-2); }
+.aa-rpg-awards { margin: 0; padding: 0; list-style: none; }
+.aa-rpg-awards li { padding: 10px 0; border-bottom: 1px solid var(--sep); display: flex; justify-content: space-between; gap: 14px; font-size: 13px; }
+.aa-rpg-awards li span { display: grid; gap: 4px; }
+.aa-rpg-awards li strong { white-space: nowrap; }
+@media(max-width: 520px) { .aa-rpg-stats { grid-template-columns: 1fr; } .aa-rpg-between { align-items: flex-start; } }
+/* Phase 3.1: scoped workout XP preview and earned reward summary. */
+.aa-xp-panel { margin: 12px 0; padding: 12px; border: 1px solid var(--sep); border-radius: 12px; background: var(--surface-3); text-align: start; }
+.aa-xp-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
+.aa-xp-heading strong:last-child { color: var(--acc); white-space: nowrap; }
+.aa-xp-breakdown { list-style: none; margin: 8px 0 0; padding: 0; }
+.aa-xp-breakdown li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12px; }
+.aa-xp-breakdown strong { white-space: nowrap; }
+.aa-xp-help { margin: 7px 0 0; font-size: 12px; color: var(--label-2); }
+@media (max-width: 420px) { .aa-xp-heading { flex-wrap: wrap; } }

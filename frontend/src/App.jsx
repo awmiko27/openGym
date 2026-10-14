@@ -31,6 +31,8 @@ import Login from './views/Login.jsx'
 import MobileOnboarding from './views/MobileOnboarding.jsx'
 import Home from './views/Home.jsx'
 import AnimeAscension from './views/AnimeAscension.jsx'
+import AnimeRPG from './views/AnimeRPG.jsx'
+import './anime-rpg.css'
 import './anime-ascension.css'
 import CheckIn from './views/CheckIn.jsx'
 import Plan from './views/Plan.jsx'
@@ -212,6 +214,7 @@ function Shell() {
               {S.checkIn !== false && <Route path="/checkin" element={<CheckIn />} />}
               <Route path="/plan" element={<Plan />} />
                <Route path="/anime" element={<AnimeAscension />} />
+               <Route path="/anime/rpg" element={<AnimeRPG />} />
               <Route path="/plan/r/:id" element={<RoutineEdit />} />
               <Route path="/workout" element={<Workout />} />
               <Route path="/stats" element={<Stats />} />

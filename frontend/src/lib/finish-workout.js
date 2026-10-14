@@ -1,6 +1,7 @@
 // The persisted boundary for a finished session. Keep this pure so compatibility tests can
 // exercise the exact shape the UI writes without mounting React or mutating store state.
 import { bestWeightForEntry, cleanupSg } from './history.js'
+import { animeSessionProof } from './anime/rpg.js'
 import { hasCompletedWork, isSideSet } from './workout-model.js'
 
 // planSec is live-session bookkeeping: a hold displaced before it finished puts its plan aside so
@@ -66,6 +67,7 @@ export function sessionEnd(active, now = Date.now(), gap = FORGOTTEN_GAP_MS) {
 }
 
 export function buildCompletedWorkout(active, { end = Date.now(), prs = [], snapshotFor } = {}) {
+  const animeAscension = animeSessionProof(active)
   const entries = (active?.entries || []).map(entry => {
     const completed = {
       id: entry.id,
@@ -123,6 +125,7 @@ export function buildCompletedWorkout(active, { end = Date.now(), prs = [], snap
     bw: active.bw,
     entries,
     prs,
+    ...(animeAscension ? { animeAscension } : {}),
     ...(allNoProg ? { excludeFromProgression: true } : {}),
     ...(sessionNote ? { note: sessionNote } : {}),
   }

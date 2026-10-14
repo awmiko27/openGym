@@ -55,6 +55,7 @@ export default function AnimeAscension() {
       <p className="aa-kicker">ANIME ASCENSION · TRAINING PATHS</p>
       <h1>Train like a hero. Progress at your pace.</h1>
       <p>Choose an anime-inspired path while openGym handles exercise instructions, tracking, and your training calendar.</p>
+      <button type="button" className="btn" onClick={() => navigate('/anime/rpg')}>View Hero status · XP &amp; quests</button>
     </div>
     <div className="aa-section" aria-label="Character training paths">
       <h2>Choose your training path</h2>
