@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { loadStarterPlan } from '../sheets.jsx'
@@ -8,6 +8,7 @@ import { scheduleModeOf } from '../lib/rotation.js'
 import { ANIME_PATHS, profileDraft, validateAnimeProfile } from '../lib/anime/profile.js'
 import { deriveTrainingArc, startTrainingArc } from '../lib/anime/training.js'
 import { challengeTierStates } from '../lib/anime/challenges.js'
+import { activeChallengeProgress, exitChallenge } from '../lib/anime/challenge-mode.js'
 import { CANON_PROGRAMS } from '../lib/anime/canon-programs.js'
 import { createAnimePlanPreview } from '../lib/anime/plan-preview.js'
 import { reconcileAnimeSchedule } from '../lib/anime/schedule.js'
@@ -35,6 +36,17 @@ export default function AnimeAscension() {
   const [page, setPage] = useState('dashboard')
   const [errors, setErrors] = useState([])
   const [loadingError, setLoadingError] = useState('')
+  const mode = S.animeAscension?.challengeMode
+  // Restore on returning to /anime after a verified completion. A running
+  // workout still blocks all calendar changes.
+  useEffect(() => {
+    if (!mode || S.active || !activeChallengeProgress(S)?.finished) return
+    try {
+      update(st => { if (!st.active && st.animeAscension?.challengeMode?.startedAt === mode.startedAt) exitChallenge(st) })
+      setDraft(old => ({ ...old, path: mode.previousPath }))
+    }
+    catch (error) { console.error('Challenge return to training arc:', error) }
+  }, [mode, S.active, S.workouts, update])
   const design = CANON_PROGRAMS[draft.path]
   const program = S.animeAscension?.programs?.[draft.path]
   const arc = deriveTrainingArc(S.workouts, draft.path, program)
@@ -72,6 +84,7 @@ export default function AnimeAscension() {
     const result = validateAnimeProfile(draft)
     if (!result.ok) { setErrors(result.errors); setPage('profile'); return }
     if (S.active) { setLoadingError('Finish or exit your current workout before loading a new plan.'); return }
+    if (S.animeAscension?.challengeMode) { setLoadingError('Complete or cancel your current challenge before loading another training plan.'); return }
     if (scheduleModeOf(S) === 'rotation') {
       setLoadingError('Switch to Fixed Week under Plan before loading this character-specific program. Your rotation is unchanged.')
       return
@@ -79,6 +92,7 @@ export default function AnimeAscension() {
     if (!preview) { setLoadingError('No suitable plan was generated for the current exercise catalog and equipment settings.'); return }
     try {
       const current = useStore.getState().S
+      if (current.active || current.animeAscension?.challengeMode) throw Error('Workout or challenge mode is still active.')
       const previous = current.animeAscension || {}
       const existingProgram = previous.programs?.[result.value.path]
       const actualArc = deriveTrainingArc(current.workouts, result.value.path, existingProgram)
@@ -110,6 +124,12 @@ export default function AnimeAscension() {
           <p>Choose your character and see what's next.</p></div>
         <button className="btn" type="button" onClick={() => navigate('/anime/rpg')}>Hero status ↗</button>
       </header>
+      {mode && <div className="aa-mode-banner" role="status">
+        <strong>Special challenge mode · {CANON_PROGRAMS[mode.path]?.title}</strong>
+        <p>Your training arc is paused. Finish or cancel the challenge to restore your normal plan.</p>
+        <button className="btn" type="button" onClick={() => { set('path', mode.path); setPage('challenges') }}>Manage active challenge →</button>
+      </div>}
+      {S.animeAscension?.lastChallengeRestore?.preservedDays?.length > 0 && <p className="aa-redesign-caution">Your last challenge ended with manual calendar changes preserved. Review those weekdays in openGym Plan.</p>}
       <section aria-label="Choose a character" className="aa-redesign-characters">
         {ANIME_PATHS.map(path => <button type="button" key={path.id}
           className={'aa-redesign-character' + (draft.path === path.id ? ' is-selected' : '')}
@@ -129,14 +149,14 @@ export default function AnimeAscension() {
           </div>
         </div>
         <div className="aa-redesign-primary-actions">
-          <button type="button" className="btn primary" onClick={goReview}>Review training plan →</button>
+          <button type="button" className="btn primary" disabled={Boolean(mode)} onClick={goReview}>Review training plan →</button>
           <button type="button" className="btn" onClick={() => { setErrors([]); setPage('profile') }}>Edit training profile</button>
         </div>
       </section>
       <div className="aa-redesign-overview-grid">
         <section className="aa-redesign-mini" aria-label="Current training arc">
           <div className="aa-redesign-mini-head"><h3>Training arc</h3><span>{arc.started ? `Week ${arc.week}/${arc.totalWeeks}` : 'Not started'}</span></div>
-          {arc.started ? <><p>{arc.phase}</p><progress max={arc.required} value={arc.done} aria-label="Training week progress" />
+          {arc.started ? <><p>{mode?.path === draft.path ? `${arc.phase} · Paused for challenge` : arc.phase}</p><progress max={arc.required} value={arc.done} aria-label="Training week progress" />
             <small>{arc.done} of {arc.required} verified workouts this week</small></> :
             <p>Load a plan to start your multiweek progression.</p>}
           <button type="button" className="aa-redesign-text-action" onClick={() => setPage('arc')}>View training arc →</button>
@@ -184,7 +204,7 @@ export default function AnimeAscension() {
     </div>}
     {page === 'challenges' && <div className="aa-redesign-progress-page">
       <button type="button" className="btn" onClick={() => setPage('dashboard')}>← Back to dashboard</button>
-      <AnimeChallenges path={draft.path} />
+      <AnimeChallenges path={draft.path} onExit={path => set('path', path)} />
     </div>}
     <p className="aa-credits">Uses openGym for equipment, exercise demonstrations, and workout tracking. Character programs are noncommercial fan adaptations.</p>
   </main>

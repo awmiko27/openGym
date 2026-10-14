@@ -18,6 +18,7 @@ export default function AnimeProgression({ path, onLoadWeek }) {
   return <section className="aa-section aa-arc-view" aria-label="Training arc">
     <p className="aa-redesign-eyebrow">CHARACTER PROGRESSION</p>
     <h2>{design.title} · Training Arc</h2>
+    {saved.challengeMode?.path === path && <p className="aa-redesign-caution">Training arc paused while your special challenge is active. Challenge workouts do not advance this arc.</p>}
     <p className="aa-note">A {arc.totalWeeks}-week program organized into {upcoming.length} training phases. Complete your prescribed workouts to unlock the next week. Challenges are optional and do not affect these unlocks.</p>
 
     <div className="aa-arc-current">

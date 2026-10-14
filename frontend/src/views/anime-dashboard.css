@@ -115,3 +115,15 @@
 .aa-challenge-status { font-size: 12px; font-weight: 750; color: var(--acc); }
 .aa-challenge-lock-message { padding: 10px; border-radius: 9px; background: var(--surface-3); }
 @media (max-width: 440px) { .aa-arc-phase { gap: 8px; padding: 11px; } .aa-arc-phase-status { max-width: 64px; text-align: right; } .aa-challenge-tier { padding: 13px; } .aa-challenge-tier-top { gap: 8px; } }
+
+/* Temporary challenge-mode separation and read-only preview. */
+.aa-mode-banner { border: 1px solid var(--acc); background: var(--surface-2); border-radius: 13px; padding: 16px; display: grid; gap: 10px; margin: 14px 0; }
+.aa-mode-banner > strong { font-size: 14px; }
+.aa-mode-banner .btn { justify-self: start; }
+.aa-mode-cancel { border: 1px solid var(--sep); padding: 12px; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 9px; }
+.aa-mode-cancel p { flex: 1 0 100%; }
+.aa-mode-preview { margin: 13px 0; padding: 12px; border-radius: 11px; background: var(--surface-3); }
+.aa-mode-preview details { border-bottom: 1px solid var(--sep); padding: 9px 2px; }
+.aa-mode-preview summary { cursor: pointer; font-size: 12px; font-weight: 700; }
+.aa-mode-preview li { color: var(--label-2); font-size: 12px; padding: 2px 0; }
+.aa-mode-preview ul { padding-left: 19px; }

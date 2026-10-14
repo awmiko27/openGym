@@ -1,5 +1,6 @@
 // Phase 5B — optional bounded objectives; training sessions remain logged only by openGym.
 import { qualifyingAfter, localDay } from './training.js'
+import { characterSessionCount } from './canon-programs.js'
 
 const NAMES = {
   saitama: ['Hero First Steps', 'Hero Consistency', 'Hero Trial'],
@@ -23,36 +24,50 @@ export const beginChallenge = (id, at = Date.now()) => {
 
 export function deriveChallenge(workouts, active, today = localDay()) {
   const design = CHALLENGES[active?.id]
-  if (!design || active?.v !== 1 || !Number.isFinite(active.startedAt)) return null
+  if (!design || ![1, 2].includes(active?.v) || !Number.isFinite(active.startedAt)) return null
+  const strict = active.v === 2
   const eligible = qualifyingAfter(workouts, design.path, active.startedAt)
-  const usedDays = new Set(), credited = []
+    .filter(w => !strict || w.animeAscension?.challengeId === active.id)
+  const usedDays = new Set(), credited = [], slotsInCycle = new Set()
+  const distinct = design.days === 7 ? 3 : design.days === 14 ? 4 : characterSessionCount(design.path)
   for (const w of eligible) {
-    const day = Math.floor(Date.parse(`${w.d}T12:00:00Z`) / 86400000)
-    if (!Number.isFinite(day) || usedDays.has(w.d)) continue
+    if (usedDays.has(w.d)) continue
+    // In a new major challenge, each prescribed session type must be
+    // performed before repeating that type for additional credit.
+    if (strict) {
+      const slot = w.animeAscension?.slot
+      if (!slot || slotsInCycle.has(slot)) continue
+      slotsInCycle.add(slot)
+      if (slotsInCycle.size === distinct) slotsInCycle.clear()
+    }
     usedDays.add(w.d)
     credited.push(w)
     if (credited.length === design.sessions) break
   }
+  const cancelled = Number.isFinite(active.cancelledAt)
   const count = credited.length
-  const finished = count >= design.sessions
+  const finished = !cancelled && count >= design.sessions
   const startedDay = localDay(new Date(active.startedAt))
   const elapsed = Math.max(1, Math.floor((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${startedDay}T12:00:00Z`)) / 86400000) + 1)
-  return { ...design, count, finished, bonusXp: finished ? design.bonusXp : 0,
-    potentialXp: design.bonusXp, elapsed, extended: elapsed > design.days && !finished,
-    finalTrial: count === design.sessions - 1 && !finished,
+  return { ...design, count, finished, cancelled, bonusXp: finished ? design.bonusXp : 0,
+    potentialXp: design.bonusXp, elapsed, extended: elapsed > design.days && !finished && !cancelled,
+    finalTrial: count === design.sessions - 1 && !finished && !cancelled,
     ids: credited.map(w => String(w.id)), completedOn: finished ? credited.at(-1).d : null }
 }
 
-// Reward balance remains a pure projection of the saved workout history and
-// opted-in challenge; neither viewing nor repeating a screen can mint rewards.
+/** Latest attempt for a tier wins unless an earlier attempt was completed.
+ * A cancelled attempt can be restarted; earned XP for a tier is counted once.
+ */
 export function challengeProgresses(workouts, statesForPath) {
   const list = Array.isArray(statesForPath) ? statesForPath : []
-  const seen = new Set()
-  return list.map(state => {
-    if (!state?.id || seen.has(state.id)) return null
-    seen.add(state.id)
-    return deriveChallenge(workouts, state)
-  }).filter(Boolean)
+  const byId = new Map()
+  for (const state of list) {
+    const result = deriveChallenge(workouts, state)
+    if (!result) continue
+    const earlier = byId.get(result.id)
+    if (!earlier?.finished) byId.set(result.id, result)
+  }
+  return [...byId.values()]
 }
 
 /** Ordered challenge ladder for a single character: 7 → 14 → 30 days.
@@ -63,7 +78,7 @@ export function challengeProgresses(workouts, statesForPath) {
 export function challengeTierStates(workouts, path, history) {
   const progress = challengeProgresses(workouts, history).filter(c => c.path === path)
   const current = new Map(progress.map(c => [c.id, c]))
-  const active = progress.some(c => !c.finished)
+  const active = progress.some(c => !c.finished && !c.cancelled)
   const lengths = [7, 14, 30]
   return lengths.map((days, i) => {
     const definition = CHALLENGES[`${path}-${days}`]
@@ -72,8 +87,8 @@ export function challengeTierStates(workouts, path, history) {
     const saved = current.get(definition.id) || null
     return {
       ...definition, tier: i + 1, progress: saved, unlocked,
-      canStart: unlocked && !saved && !active,
-      status: saved ? (saved.finished ? 'completed' : 'in-progress') : unlocked ? 'available' : 'locked',
+      canStart: unlocked && (!saved || saved.cancelled) && !active,
+      status: saved && !saved.cancelled ? (saved.finished ? 'completed' : 'in-progress') : unlocked ? 'available' : 'locked',
       prerequisite: i ? CHALLENGES[`${path}-${lengths[i - 1]}`]?.name : null,
     }
   }).filter(Boolean)

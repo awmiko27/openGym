@@ -43,6 +43,7 @@ export function deriveTrainingArc(workouts, path, program) {
   if (program?.v !== 1 || !Number.isFinite(program.startedAt))
     return { path, started: false, week: 1, loadedWeek: 0, phase: design.phases[0], completed: false, done: 0, required, totalWeeks: design.weeks }
   const eligible = qualifyingAfter(workouts, path, program.startedAt)
+    .filter(w => !w.animeAscension?.challengeId)
   const credited = []
   let weekSlots = new Set()
   let weekFirstDay = null

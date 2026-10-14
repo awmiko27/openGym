@@ -10,7 +10,7 @@ export const ANIME_RPG_PATHS = Object.freeze({
 })
 // Exact routine name patterns also accept legacy Phase 3/4/5 three-day plans.
 // No arbitrary renamed workouts receive verified Anime Ascension XP.
-const weekSuffix = '(?: · Week (?:[2-9]|10))?'
+const weekSuffix = '(?: · Week (?:[2-9]|10))?(?: · Trial (?:saitama|goku|jinwoo)-(?:7|14|30))?'
 const PATH_ROUTINES = {
   saitama: new RegExp(`^Saitama · Hero Foundation (?:[ABC](?: — (?:Strength|Endurance|Conditioning))?|A — Push-up Progression|B — Squats & Core|C — Run Preparation|D — Hero Circuit|E — Endurance Check)${weekSuffix}$`),
   goku: new RegExp(`^Goku · Saiyan Foundation (?:[ABC] — (?:Strength|Power|Conditioning)|A — Turtle School Conditioning|B — Upper-Body Strength|C — Legs & Power Foundation|D — Martial Arts Conditioning)${weekSuffix}$`),
@@ -33,11 +33,18 @@ export function animeSessionSnapshot(state, routineIds, entries) {
   if (!isAnimePath(path) || ids.length !== 1) return null
   const routine = safeArray(state?.routines).find(r => r?.id === ids[0])
   if (!routine || !PATH_ROUTINES[path].test(routine.name || '')) return null
+  const mode = state?.animeAscension?.challengeMode
+  const trial = / · Trial ([a-z]+-(?:7|14|30))$/.exec(routine.name || '')
+  // While a challenge owns the calendar, no non-challenge session can advance
+  // the paused training arc or impersonate this challenge's saved workout.
+  if (mode && (!trial || trial[1] !== mode.id || !mode.routineIds?.includes(routine.id))) return null
+  if (!mode && trial) return null
   const es = safeArray(entries)
   if (!es.length || es.some(e => !e?.id || !safeArray(e.sets).length ||
     e.noProg === true || e.sets.some(s => !isReps(s) || s?.warmup === true || s?.sides))) return null
   return {
     v: 1, path, routineId: ids[0],
+    ...(mode ? { challengeId: mode.id } : {}),
     slot: / Foundation ([A-E])(?: —|$)/.exec(routine.name)?.[1] || null,
     trainingWeek: Number(state?.animeAscension?.programs?.[path]?.loadedWeek) || 1,
     // Source prescription, not rewritten by subsequent exercise swaps or plan edits.
@@ -55,7 +62,8 @@ export function animeActiveFields(state, routineIds, entries) {
 export function animeSessionProof(active) {
   const snap = active?.animeAscension
   if (snap?.v !== 1 || !isAnimePath(snap.path) || !Array.isArray(snap.requirements)) return null
-  return { v: 1, path: snap.path, routineId: snap.routineId, slot: snap.slot || null, trainingWeek: snap.trainingWeek || null, requirements: snap.requirements }
+  return { v: 1, path: snap.path, routineId: snap.routineId, slot: snap.slot || null, trainingWeek: snap.trainingWeek || null,
+    ...(snap.challengeId ? { challengeId: snap.challengeId } : {}), requirements: snap.requirements }
 }
 
 export function isQualifiedAnimeWorkout(workout) {
