@@ -62,7 +62,13 @@ export function cardioGuidance(path, week = 1, experience = 'beginner') {
   if (!plan) return null
   const index = Math.max(1, Math.min(10, Math.floor(Number(week) || 1)))
   const base = experience === 'advanced' ? 20 : experience === 'intermediate' ? 15 : 10
+  const instruction = path === 'goku'
+    ? 'Stay at conversational effort with easy footwork or technique-only shadowboxing; avoid hard sparring.'
+    : experience === 'beginner'
+      ? 'Start with comfortable walking. If ready, alternate 1 minute of easy jogging with 2 minutes walking; walking alone is fine.'
+      : 'Alternate easy jogging and walking as needed. Keep the pace conversational and increase duration only if recovery is good.'
   return {
+    instruction,
     label: plan.cardioLabel,
     minutes: Math.min(35, base + Math.floor((index - 1) / 2) * 3),
     proofRequired: false,

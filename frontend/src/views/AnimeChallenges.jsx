@@ -8,6 +8,7 @@ import { scheduleModeOf } from '../lib/rotation.js'
 import { CANON_PROGRAMS } from '../lib/anime/canon-programs.js'
 import { challengeTierStates } from '../lib/anime/challenges.js'
 import { challengePlan, activateChallenge, activeChallengeProgress, exitChallenge } from '../lib/anime/challenge-mode.js'
+import { challengeWorkoutFeedback } from '../lib/anime/challenge-feedback.js'
 
 const tiers = ['I', 'II', 'III']
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -31,6 +32,7 @@ export default function AnimeChallenges({ path, onExit }) {
   const design = CANON_PROGRAMS[path]
   const mode = saved.challengeMode
   const activeProgress = activeChallengeProgress(S)
+  const latestFeedback = mode?.path === path ? challengeWorkoutFeedback(S) : null
 
   const makePlan = id => challengePlan(useStore.getState().S, id, {
     catalogue: Object.values(EXIDX), equipment: activeProfile(useStore.getState().S),
@@ -86,6 +88,10 @@ export default function AnimeChallenges({ path, onExit }) {
       {mode.path === path && Number.isInteger(mode.startDay) && <p className="aa-note">Day 1: {weekdays[mode.startDay]}. Trial workouts follow the challenge start day, not the usual weekly schedule.</p>}
       {mode.path === path && <>
         <p className="aa-note">{activeProgress?.count || 0} / {activeProgress?.sessions || 0} verified challenge workouts{mode.v === 2 ? ` · Training block ${mode.blockIndex + 1}` : ''}</p>
+        {latestFeedback && <div role="status" className={'aa-feedback ' + (latestFeedback.kind === 'credited' ? 'aa-feedback-success' : 'aa-feedback-warning')}>
+          <strong>{latestFeedback.title}</strong>
+          <p>{latestFeedback.detail}</p>
+        </div>}
         {activeProgress && !activeProgress.objective && <p className="aa-note">This challenge was started before benchmark assessments. It keeps its original completion rules; cancel and restart an eligible tier to use the new tests.</p>}
         {activeProgress?.objective && <div className="aa-mode-assessment" aria-label="Challenge assessment progress">
           <strong>{activeProgress.objective.focus}</strong>
@@ -125,7 +131,7 @@ export default function AnimeChallenges({ path, onExit }) {
               <p className="aa-note">{p.count} of {stage.sessions} verified trial sessions · Day {p.elapsed}{p.extended ? ' · Deadline extended' : ''}</p>
               {!p.objective && status === 'in-progress' && <p className="aa-note">Legacy attempt: your original counting rules remain until you finish or cancel. New assessment rules apply only when starting a fresh challenge.</p>}
               {p.objective && <p className="aa-note">{p.objective.exerciseName}: starting benchmark {p.objective.baseline ?? 'pending'} reps; final target {p.objective.finalTarget} reps.{p.objective.checkpointAt ? ` Checkpoint at session ${p.objective.checkpointAt}.` : ''}</p>}
-              {status === 'completed' ? <p className="aa-challenge-success">Badge earned · {p.completedOn} · +{p.bonusXp} XP</p> :
+              {status === 'completed' ? <p className="aa-challenge-success">✓ Badge earned · {p.completedOn} · +{p.bonusXp} XP{p.objective?.finalScore != null ? ` · Final assessment: ${p.objective.finalScore} reps` : ''}</p> :
                 <p className="aa-note">{p.finalTrial ? 'Final assessment ready: beat your starting benchmark to clear the trial.' : 'Complete each prescribed workout in order. Your opening session records the benchmark.'}</p>}
             </>}
             {status === 'available' && !mode && <>

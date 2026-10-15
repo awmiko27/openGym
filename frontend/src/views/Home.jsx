@@ -102,11 +102,15 @@ export default function Home() {
 
   return <div className="narrow">
     <div className="hdr">
-      <div><h1>{user ? t('Hi {0}', user.name) : 'Anime Ascension'}</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
+      <div><h1>{user ? t('Hi {0}', user.name) : 'Hero Path'}</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
       <button className="iconbtn" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}><Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}</button>
     </div>
 
-    <div className="aa-home-entry"><div><strong>Anime Ascension</strong><p>Choose an anime-inspired training path</p></div><button className="btn" type="button" onClick={() => nav('/anime')}>Training paths</button></div>
+    <button className="aa-home-entry" type="button" onClick={() => nav('/anime')}>
+      <span className="aa-home-entry-icon" aria-hidden="true"><Icon name="sparkles" /></span>
+      <span className="aa-home-entry-copy"><strong>Hero Path</strong><small>Explore training paths and challenges</small></span>
+      <span className="aa-home-entry-next" aria-hidden="true"><Icon name="chevronRight" /></span>
+    </button>
     <div className="card">
       {/* A coach week runs by order, not by weekday, so its progress row stands in for the
           seven dots (components/QueueRow.jsx). The today row below stays as it is: the queue's

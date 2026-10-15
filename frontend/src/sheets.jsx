@@ -167,6 +167,7 @@ export function confirmSheet(opts) {
 // string literals written inside a t() call, so copy parked in the catalog and passed in as a
 // variable is invisible to it — it would quietly stay English in every language.
 const PLAN_COPY = {
+  pplul: () => ({ name: t('PPLUL · Strength & Hypertrophy'), about: t('Intermediate · Monday–Friday · 60–75 minutes. RIR and rest in exercise notes.') }),
   'goku-foundation': () => ({ name: t('Goku · Saiyan Foundation'), about: t('Strength, power and conditioning training.') }),
   'jinwoo-foundation': () => ({ name: t('Sung Jinwoo · Hunter Foundation'), about: t('Strength, agility and endurance training.') }),
   ppl: () => ({ name: t('Push / Pull / Legs'), about: t('Push, pull and legs each get their own day.') }),
@@ -182,8 +183,15 @@ const PLAN_COPY = {
 // nothing at all. planId is deliberately required — a default invites `onClick={loadStarterPlan}`,
 // which hands the click event in as the plan and silently loads nothing.
 export function loadStarterPlan(planId, profile, animeProfile) {
+  if (planId === 'pplul' && (useStore.getState().S.active || useStore.getState().S.animeAscension?.challengeMode)) {
+    toast('Finish the active workout or Hero Path challenge before loading PPLUL.')
+    return false
+  }
   const plan = buildStarterPlan(planId, profile ? profileEquipment(profile) : undefined, animeProfile)
-  if (!plan) return false
+  if (!plan) {
+    if (planId === 'pplul') toast('PPLUL needs a complete set of matching exercises. Select a basic-gym equipment profile or choose As written.')
+    return false
+  }
   update(st => {
     // Loading the same plan again reuses the routines it added last time (same name, same
     // exercises) for the weekdays instead of a second Upper A, Lower A, ... under the same names.

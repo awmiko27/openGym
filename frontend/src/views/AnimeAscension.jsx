@@ -8,6 +8,7 @@ import { scheduleModeOf } from '../lib/rotation.js'
 import { ANIME_PATHS, profileDraft, validateAnimeProfile } from '../lib/anime/profile.js'
 import { deriveTrainingArc, startTrainingArc } from '../lib/anime/training.js'
 import { challengeTierStates } from '../lib/anime/challenges.js'
+import { restoredChallengeSummary } from '../lib/anime/challenge-feedback.js'
 import { reconcileChallengeReturn, activeChallengeProgress, challengeNeedsRepRepair, repairNextChallengeRoutine } from '../lib/anime/challenge-mode.js'
 import { CANON_PROGRAMS } from '../lib/anime/canon-programs.js'
 import { createAnimePlanPreview } from '../lib/anime/plan-preview.js'
@@ -15,6 +16,7 @@ import { reconcileAnimeSchedule } from '../lib/anime/schedule.js'
 import AnimePlanReview from './AnimePlanReview.jsx'
 import AnimeProgression from './AnimeProgression.jsx'
 import AnimeChallenges from './AnimeChallenges.jsx'
+import Icon from '../components/Icon.jsx'
 import './anime-dashboard.css'
 
 const PLANS = {
@@ -86,6 +88,7 @@ export default function AnimeAscension() {
   const completedChallenges = challengeStages.filter(t => t.status === 'completed').length
   const ongoingChallenge = challengeStages.find(t => t.status === 'in-progress')
   const nextChallenge = challengeStages.find(t => t.canStart)
+  const completionSummary = restoredChallengeSummary(S)
 
   const previewWeek = arc?.started && !arc.completed ? arc.week : 1
   // The same character builders, exercise index, eligibility function and
@@ -151,12 +154,21 @@ export default function AnimeAscension() {
   return <main className="narrow aa-page aa-redesign">
     {page === 'dashboard' && <>
       <header className="aa-redesign-header">
-        <div><p className="aa-kicker">ANIME ASCENSION</p><h1>Your training path</h1>
+        <div><p className="aa-kicker">HERO PATH</p><h1>Your hero path</h1>
           <p>Choose your character and see what's next.</p></div>
         <button className="btn" type="button" onClick={() => navigate('/anime/rpg')}>Hero status ↗</button>
       </header>
       {modeSyncError && <p className="aa-redesign-caution" role="alert">{modeSyncError}</p>}
-      {S.animeAscension?.lastChallengeRestore?.completed && <p role="status" className="aa-challenge-success">Challenge completed! Your training arc and original schedule have been restored. The challenge badge and bonus XP appear in your Hero Status.</p>}
+      {completionSummary && <section role="status" className={'aa-completion-receipt ' + (!completionSummary.valid ? 'aa-feedback-warning' : '')} aria-label="Latest challenge result">
+        {completionSummary.valid ? <>
+          <p className="aa-redesign-eyebrow">CHALLENGE COMPLETE</p>
+          <h2>{completionSummary.name}</h2>
+          <div className="aa-completion-stats"><strong>+{completionSummary.xp} XP</strong><span>Badge earned · {completionSummary.completedOn}</span></div>
+          <p>{completionSummary.restored ? 'Your original training calendar and arc have resumed.' : 'Your training arc has resumed; review manually edited calendar days in Plan.'}</p>
+          <p>{completionSummary.nextTier ? `Unlocked next: ${completionSummary.nextTier}` : 'No additional tier to unlock for this challenge.'}</p>
+          <button className="btn" type="button" onClick={() => navigate('/anime/rpg')}>View Hero Status →</button>
+        </> : <><strong>{completionSummary.name}: verification changed</strong><p>{completionSummary.detail}</p></>}
+      </section>}
       {mode && <div className="aa-mode-banner" role="status">
         <strong>Special challenge mode · {CANON_PROGRAMS[mode.path]?.title}</strong>
         <p>Your training arc is paused. Finish or cancel the challenge to restore your normal plan.</p>
@@ -183,7 +195,7 @@ export default function AnimeAscension() {
         </div>
         <div className="aa-redesign-primary-actions">
           <button type="button" className="btn primary" disabled={Boolean(mode)} onClick={goReview}>Review training plan →</button>
-          <button type="button" className="btn" onClick={() => { setErrors([]); setPage('profile') }}>Edit training profile</button>
+          <button type="button" className="btn aa-redesign-edit-profile" onClick={() => { setErrors([]); setPage('profile') }}><Icon name="pencil" /> Edit training profile</button>
         </div>
       </section>
       <div className="aa-redesign-overview-grid">

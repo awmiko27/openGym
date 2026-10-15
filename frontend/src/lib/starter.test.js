@@ -32,10 +32,11 @@ const APPROVED = {
 const shape = r => r.ex.map(e => [e.id, e.sets, e.reps])
 
 describe('starter plan catalog', () => {
-  it('offers the original four plans and Saitama, with the day count read off the schedule', () => {
+  it('offers the original four plans, PPLUL, and Saitama, with counts from schedules', () => {
     expect(starterPlanOptions()).toEqual([
       { id: 'ppl', days: 3 }, { id: 'upper-lower', days: 4 },
       { id: 'full-body', days: 3 }, { id: '5x5', days: 3 },
+      { id: 'pplul', days: 5 },
       { id: 'saitama-foundation', days: 3 },
     ])
     for (const { id, days } of starterPlanOptions()) expect(starterPlanDays(id)).toHaveLength(days)
@@ -115,6 +116,17 @@ describe('fitting a starter plan to equipment', () => {
     expect(fitted.fit).toEqual({ swapped: 0, dropped: 0 })
   })
 
+  it('keeps PPLUL complete with gym equipment and refuses missing machines', () => {
+    const full = buildStarterPlan('pplul', ALL_EQUIPMENT)
+    expect(full).not.toBeNull()
+    expect(full.schedule.map(x => x.day)).toEqual([1, 2, 3, 4, 5])
+    expect(full.routines.at(-1).ex.map(x => x.id))
+      .toEqual(['2224', '2290', '0585', '0599', '0605', '0175'])
+    for (const eq of [['dumbbell'], ['barbell', 'dumbbell'], ['band'], []]) {
+      expect(buildStarterPlan('pplul', eq)).toBeNull()
+    }
+  })
+
   it('has no fit report when no equipment is given', () => {
     expect(buildStarterPlan('ppl').fit).toBeUndefined()
   })
@@ -134,6 +146,7 @@ describe('fitting a starter plan to equipment', () => {
   it('only ever uses exercises the equipment allows (body weight is always allowed)', () => {
     for (const eq of [['dumbbell'], ['barbell', 'dumbbell'], ['band'], []]) {
       for (const { id } of starterPlanOptions()) {
+        if (id === 'pplul') continue // Tested above: incomplete equipment must fail closed.
         const fitted = buildStarterPlan(id, eq)
         for (const exId of ids(fitted)) expect(eqAvailable(eq, EXIDX[exId])).toBe(true)
       }
@@ -143,6 +156,7 @@ describe('fitting a starter plan to equipment', () => {
   it('never repeats an exercise inside one routine', () => {
     for (const eq of [['dumbbell'], ['band'], []]) {
       for (const { id } of starterPlanOptions()) {
+        if (id === 'pplul') continue // Tested above: incomplete equipment must fail closed.
         for (const r of buildStarterPlan(id, eq).routines) {
           const own = r.ex.map(e => e.id)
           expect(new Set(own).size).toBe(own.length)
@@ -155,6 +169,7 @@ describe('fitting a starter plan to equipment', () => {
     const bad = /stretch|isometric|squeeze|yoga|toe touch|exercise ball|bosu/i
     for (const eq of [['dumbbell'], ['dumbbell'], ['band'], []]) {
       for (const { id } of starterPlanOptions()) {
+        if (id === 'pplul') continue // Tested above: incomplete equipment must fail closed.
         for (const exId of ids(buildStarterPlan(id, eq))) expect(EXIDX[exId].n).not.toMatch(bad)
       }
     }

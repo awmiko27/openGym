@@ -4,6 +4,7 @@
 import { saitamaDifficulty } from './saitama.js'
 import { trainingPrescriptionDelta } from './training.js'
 import { CANON_PROGRAMS } from './canon-programs.js'
+import { chooseBackMovements } from './back-movements.js'
 
 const normalize = value => String(value || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim()
 const risky = /\b(jump|explosive|plyometric|clap|handstand|weighted|pistol|burpee|decline|snatch|clean and jerk)\b/
@@ -22,7 +23,6 @@ const CANDIDATES = {
   situp: [/^sit ?up$/, /\bsit ?up\b/, /\bcrunch\b/],
   climber: [/^mountain climber$/, /\bmountain climber\b/],
   calf: [/\bstanding calf raise\b/, /^calf raise$/],
-  row: [/\bone arm dumbbell row\b/, /\bsingle arm dumbbell row\b/, /\bbent over dumbbell row\b/, /\bdumbbell row\b/],
   press: [/\bdumbbell shoulder press\b/, /\bdumbbell overhead press\b/, /\bbarbell shoulder press\b/],
   curl: [/\bdumbbell biceps curl\b/, /\bdumbbell curl\b/],
 }
@@ -48,17 +48,17 @@ const DESIGNS = Object.freeze({
       [['squat',2,9],['push',2,7],['bridge',2,9],['core',2,8]],
       [['push',2,8],['row',2,8],['press',2,8],['otherCore',2,8]],
       [['squat',3,8],['lunge',2,8],['calf',2,12],['bridge',2,8]],
-      [['climber',2,12],['push',2,8],['squat',2,10],['core',2,10],['calf',2,12]],
+      [['climber',2,12],['back',2,8],['lunge',2,8],['core',2,10],['calf',2,12]],
     ],
   },
   jinwoo: {
     name: 'Sung Jinwoo · Hunter Foundation',
     sessions: [
-      [['push',3,6],['squat',2,8],['situp',2,8],['bridge',2,8]],
+      [['push',3,6],['back',2,8],['squat',2,8],['core',2,8]],
       [['squat',3,10],['situp',2,10],['lunge',2,8],['bridge',2,10]],
-      [['lunge',2,8],['otherCore',2,10],['climber',2,10],['calf',2,12]],
-      [['row',2,8],['push',2,8],['squat',2,8],['core',2,8],['bridge',2,8]],
-      [['squat',2,12],['push',2,10],['situp',2,10],['climber',2,12],['calf',2,12]],
+      [['lunge',2,8],['otherCore',2,10],['climber',2,10],['upperBack',2,10]],
+      [['back',3,8],['push',2,8],['squat',2,8],['bridge',2,8]],
+      [['bridge',2,12],['calf',2,12],['core',2,10],['climber',2,12],['push',2,8]],
     ],
   },
 })
@@ -88,11 +88,11 @@ export function buildCharacterFoundation(path, { catalogue, uid, equipment, isAv
   const core = choose(catalogue, 'core', allowed)
   // Fail before touching an existing plan if openGym's current catalog cannot fill basics.
   if (!push || !squat || !bridge || !core) return null
+  const back = chooseBackMovements(catalogue, allowed)
   const selections = {
-    push, squat, bridge, core,
+    push, squat, bridge, core, back: back.primary, upperBack: back.support,
     otherCore: choose(catalogue, 'otherCore', allowed, body, new Set([core.id])) || core,
     situp: choose(catalogue, 'situp', allowed) || core,
-    row: choose(catalogue, 'row', allowed, loaded),
     press: choose(catalogue, 'press', allowed, loaded),
     lunge: choose(catalogue, 'lunge', allowed),
     climber: choose(catalogue, 'climber', allowed),

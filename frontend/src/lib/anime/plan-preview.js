@@ -3,6 +3,7 @@
 import { buildSaitamaFoundation } from './saitama.js'
 import { buildCharacterFoundation } from './character-paths.js'
 import { CANON_PROGRAMS } from './canon-programs.js'
+import { chooseBackMovements } from './back-movements.js'
 
 export const WEEKDAY_LABELS = Object.freeze(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
 
@@ -38,10 +39,15 @@ export function createAnimePlanPreview({ path, catalogue, equipment, isAvailable
   })
   if (days.some(day => !day)) return null
   const scheduled = new Set(days.map(day => day.day))
+  const available = ex => equipment == null || isAvailable(equipment, ex)
+  const back = chooseBackMovements(catalogue, available)
   return {
     path, title: design.title, week: Math.max(1, Number(profile.trainingWeek) || 1),
     days, restDays: WEEKDAY_LABELS.filter((_, i) => !scheduled.has(i)),
     workoutCount: days.length,
     totalWorkingSets: days.reduce((sum, day) => sum + day.workingSets, 0),
+    backBalanceNote: back.row ? null : back.support
+      ? 'No resistance row is available with these equipment settings. Prone upper-back movements help shoulder control, but do not replace pulling against resistance. Add a band or dumbbells in openGym Settings if available.'
+      : 'No resistance row or prone upper-back movement is available with these equipment settings. This plan uses other available movements instead; consider enabling a band or dumbbells in openGym Settings if you have them.',
   }
 }

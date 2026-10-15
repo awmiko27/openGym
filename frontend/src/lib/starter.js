@@ -10,6 +10,7 @@ import { EXIDX } from './exercises.js'
 import { eqAvailable, ALL_EQUIPMENT } from './equipment.js'
 import { buildSaitamaFoundation } from './anime/saitama.js'
 import { buildGokuFoundation, buildJinwooFoundation } from './anime/character-paths.js'
+import { buildPplulPlan } from './pplul.js'
 
 const PPL = [
   ['push', 'Push Day', 'barbell', [['0025', 4, 8], ['0047', 3, 10], ['0426', 3, 10], ['0334', 3, 12], ['0241', 3, 12], ['0251', 3, 10]]],
@@ -56,10 +57,12 @@ export const starterRoutines = () => build(PPL)
 // beside it, so the two can never disagree.
 export const starterPlanOptions = () =>
   [...Object.entries(PLANS).map(([id, { schedule }]) => ({ id, days: schedule.length })),
+  { id: 'pplul', days: 5 },
   { id: 'saitama-foundation', days: 3 }]
 
 // The weekdays a plan would claim, or null for an unknown id.
-export const starterPlanDays = id => id === 'saitama-foundation' ? [1, 3, 5]
+export const starterPlanDays = id => id === 'pplul' ? [1, 2, 3, 4, 5]
+  : id === 'saitama-foundation' ? [1, 3, 5]
   : PLANS[id]?.schedule.map(([day]) => day) ?? null
 
 // Words that name the equipment, not the movement ("barbell", "lever", "machine"…), so that
@@ -126,6 +129,9 @@ const fitRoutines = (routines, equipment) => {
 // treats null as "change nothing" can never half-apply a plan. With an equipment list the
 // plan is fitted to it first, and `fit` reports how many exercises that swapped or dropped.
 export const buildStarterPlan = (id, equipment, animeProfile) => {
+if (id === 'pplul') return buildPplulPlan({
+  catalogue: Object.values(EXIDX), uid, equipment, isAvailable: eqAvailable,
+})
 if (id === 'saitama-foundation') return buildSaitamaFoundation({
   catalogue: Object.values(EXIDX), uid, equipment,
   isAvailable: eqAvailable, profile: animeProfile,

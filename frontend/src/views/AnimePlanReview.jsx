@@ -23,6 +23,7 @@ export default function AnimePlanReview({ path, preview, profile, onBack, onLoad
         <div><strong>{preview.restDays.length}</strong><span>Recovery days</span></div>
         <div><strong>{preview.totalWorkingSets}</strong><span>Working sets / week</span></div>
       </div>
+      {preview.backBalanceNote && <p className="aa-redesign-caution">{preview.backBalanceNote}</p>}
       <div className="aa-redesign-week-top">
         <h3>Your weekly workouts</h3>
         <span>{profile.experience} · {profile.goal}</span>
@@ -55,7 +56,7 @@ export default function AnimePlanReview({ path, preview, profile, onBack, onLoad
         <summary>Story inspiration and optional conditioning</summary>
         <p><strong>Story benchmark:</strong> {design.benchmark}. This is a long-term inspiration, not the workout prescribed above.</p>
         <p>{design.adaptation}</p>
-        {guidance && <p>Optional: {guidance.minutes} minutes of {guidance.label.toLowerCase()}. Cardio/skill guidance does not currently count toward Anime Ascension XP.</p>}
+        {guidance && <p>Optional: {guidance.minutes} minutes of {guidance.label.toLowerCase()}. {guidance.instruction} Cardio/skill guidance is not yet verified for XP.</p>}
       </details>
     </>}
 

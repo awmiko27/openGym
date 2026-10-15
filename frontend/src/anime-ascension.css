@@ -23,10 +23,41 @@
 .aa-errors { color: var(--red); margin: 12px 0; font-size: 13px; }
 .aa-main-button { width: 100%; margin-top: 8px; }
 .aa-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.aa-home-entry { margin: 8px 0 16px; border: 1px solid var(--sep); border-radius: 14px; padding: 14px; background: var(--surface-2); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.aa-home-entry p { color: var(--label-2); margin: 4px 0 0; font-size: 12px; }
-.aa-home-entry button { white-space: nowrap; }
-@media(max-width: 420px) { .aa-fields { grid-template-columns: 1fr; } .aa-path { flex-wrap: wrap; } .aa-path-status { margin-inline-start: 45px; } .aa-home-entry { flex-wrap: wrap; } }
+.aa-home-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 76px;
+  margin: 8px 0 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--sep);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  color: var(--label);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+.aa-home-entry:active { background: var(--surface-2); }
+.aa-home-entry:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.aa-home-entry-icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--acc-soft);
+  color: var(--acc);
+}
+.aa-home-entry-icon .icn { font-size: 23px; }
+.aa-home-entry-copy { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.aa-home-entry-copy strong { font-size: 16px; font-weight: 700; line-height: 1.25; }
+.aa-home-entry-copy small { color: var(--label-2); font-size: 12px; line-height: 1.35; }
+.aa-home-entry-next { display: grid; place-items: center; flex: none; color: var(--label-2); }
+.aa-home-entry-next .icn { font-size: 20px; }
+@media(max-width: 420px) { .aa-fields { grid-template-columns: 1fr; } .aa-path { flex-wrap: wrap; } .aa-path-status { margin-inline-start: 45px; } }
 @media(prefers-reduced-motion: reduce) { .aa-page * { animation: none !important; transition: none !important; } }
 /* Phase 4: character cards are accessible buttons, not passive status tiles. */
 .aa-page button.aa-path { width: 100%; background: var(--surface-1); color: var(--label); font: inherit; text-align: start; cursor: pointer; }

@@ -1,7 +1,7 @@
 {
-  "name": "Anime Ascension",
-  "short_name": "Ascension",
-  "description": "Anime-inspired training powered by openGym",
+  "name": "Hero Path",
+  "short_name": "Hero Path",
+  "description": "Character-inspired training powered by openGym",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
