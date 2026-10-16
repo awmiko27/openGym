@@ -16,6 +16,7 @@ import { reconcileAnimeSchedule } from '../lib/anime/schedule.js'
 import AnimePlanReview from './AnimePlanReview.jsx'
 import AnimeProgression from './AnimeProgression.jsx'
 import AnimeChallenges from './AnimeChallenges.jsx'
+import HeroTrainingInsights from '../components/HeroTrainingInsights.jsx'
 import Icon from '../components/Icon.jsx'
 import './anime-dashboard.css'
 
@@ -215,6 +216,7 @@ export default function AnimeAscension() {
           <button type="button" className="aa-redesign-text-action" onClick={() => setPage('challenges')}>Explore challenges →</button>
         </section>
       </div>
+      <HeroTrainingInsights state={S} path={draft.path} />
       <details className="aa-redesign-info aa-redesign-canon"><summary>What inspires {design.title}'s training?</summary>
         <p>{design.benchmark} is a story benchmark, not a mandatory daily prescription. Our real-world program progresses toward these themes at a manageable pace.</p>
       </details>
