@@ -15,6 +15,7 @@ import { copyRoutine, deleteRoutine, restoreRoutine, routineSnapshot } from '../
 import { workoutControls } from '../lib/workout-controls.js'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { useListReorder, moved } from '../lib/use-list-reorder.js'
+import PplulProgressSummary from '../components/PplulProgressSummary.jsx'
 import { glyphOf, DEFAULT_GLYPH } from '../lib/glyphs.js'
 import { DEMO } from '../lib/demo.js'
 import { MOBILE } from '../lib/mobile.js'
@@ -306,6 +307,7 @@ function Schedule({ S, update, nav, mode }) {
     {mode === 'week' ? <>
       <h4 className="sec">{t('This week')}</h4>
       <div className="list plan-week">{weekOrder(ws).map(d => dayRow(d))}</div>
+      <PplulProgressSummary state={S} />
       <p className="sect-f">{t('Want two routines on one day? Tap the day and pick both.')}</p>
     </> : <div className="rotation">
       <div className="row between plan-sec-h">

@@ -480,6 +480,12 @@ export function nextPrescription(S, cfg, routine) {
   const startRows = reps => Array(sets3.setsMin).fill(reps)
   if (!last) {
     if (triple) return { policy, kind: 'first', reps: range3.repsMin, sets: sets3.setsMin, rowReps: startRows(range3.repsMin), why: ['Nothing logged yet, so this session sets the baseline.'] }
+    // For a configured double-progression range, first-day reps are the MINIMUM,
+    // not the ceiling. Other policies and legacy single-number plans are unchanged.
+    if (policy === 'double' && cfg.repsMin > 0) return {
+      policy, kind: 'first', reps: normalizeRepRange(cfg.reps, cfg.repsMin, repStep(cfg)).repsMin,
+      why: ['Nothing logged yet, so this session starts at the bottom of the rep range.'],
+    }
     return { policy, kind: 'first', why: ['Nothing logged yet, so this session sets the baseline.'] }
   }
 
@@ -750,8 +756,9 @@ export function nextPrescription(S, cfg, routine) {
  * (history.js barFloor), which the re-ramped warm-ups never go under.
  */
 export function applyPrescription(sets, p, step = 2.5, floor = 0) {
-  // A first session has nothing to prescribe from, except triple progression's start of a cycle.
-  if (!p || p.kind === 'off' || (p.kind === 'first' && !p.rowReps)) return sets
+  // First-day double progression may choose the bottom reps; triple can choose
+  // per-set reps. All other first sessions leave their default rows untouched.
+  if (!p || p.kind === 'off' || (p.kind === 'first' && !p.rowReps && p.reps == null)) return sets
   const out = sets.map(s => {
     // Never rewrite a logged set (a ticked warm-up falling through here would be the data-loss
     // the cascade fix removed, two files over). The prescription speaks to the work rows; an

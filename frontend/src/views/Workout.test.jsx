@@ -1177,15 +1177,21 @@ describe('saving progression settings unchanged', () => {
   const rows = entry => entry.sets.filter(s => !isWarmupRow(s)).map(s => [s.w, s.r])
   // Start the routine for real, tick every row and log it the way finishing a workout does.
   let day = 1
-  const trainOnce = st => {
-    const entries = buildCombinedEntries(st, ['A']).entries.map(e => ({ ...e, sets: e.sets.map(x => ({ ...x, done: true })) }))
+  // Most double-progression sessions start at the LOWER end of the range. A test of a
+  // load increase must log the UPPER end in each completed work set explicitly.
+  const trainOnce = (st, performedReps = null) => {
+    const entries = buildCombinedEntries(st, ['A']).entries.map(e => ({
+      ...e, sets: e.sets.map(x => ({
+        ...x, ...(performedReps != null && !isWarmupRow(x) ? { r: performedReps } : {}), done: true,
+      })),
+    }))
     const active = { id: 'w' + day, d: `2026-08-${String(day).padStart(2, '0')}`, start: day * 1000, routineIds: ['A'], name: 'A', entries }
     day++
     st.workouts.push(buildCompletedWorkout(active, { end: active.start + 1 }))
   }
-  const history = (cfg, sessions) => {
+  const history = (cfg, sessions, { reachTop = false } = {}) => {
     const st = { unit: 'kg', exWeights: {}, routines: [{ id: 'A', name: 'A', ex: [cfg] }], workouts: [] }
-    for (let i = 0; i < sessions; i++) trainOnce(st)
+    for (let i = 0; i < sessions; i++) trainOnce(st, reachTop ? cfg.reps : null)
     return st
   }
   // What the sheet hands back when it is saved as it opened: its own fields, nothing else.
@@ -1211,7 +1217,7 @@ describe('saving progression settings unchanged', () => {
   }
 
   it('keeps a double-progression raise in place, and the next session builds on it', async () => {
-    const st = history({ id: BENCH, sets: 3, reps: 12, repsMin: 8, weight: 40, prog: 'double' }, 1)
+    const st = history({ id: BENCH, sets: 3, reps: 12, repsMin: 8, weight: 40, prog: 'double' }, 1, { reachTop: true })
     const { before, opened, after } = await saveUnchanged(st)
     expect(before.plan.kind).toBe('up')
     expect(opened).toMatchObject({ sets: 3, reps: 12, repsMin: 8 })
@@ -1249,7 +1255,7 @@ describe('saving progression settings unchanged', () => {
   })
 
   it('keeps the plan\'s weight when only the reps are edited, so the restart holds what was lifted', async () => {
-    const st = history({ id: BENCH, sets: 3, reps: 12, repsMin: 8, weight: 40, prog: 'double' }, 1)
+    const st = history({ id: BENCH, sets: 3, reps: 12, repsMin: 8, weight: 40, prog: 'double' }, 1, { reachTop: true })
     await mount(buildCombinedEntries(st, ['A']).entries, 0, { routines: st.routines, workouts: st.workouts })
     await pressProgression()
     const [, opened, save] = mocks.exConfigSheet.mock.calls.at(-1)

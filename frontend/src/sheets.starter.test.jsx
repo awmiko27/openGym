@@ -176,6 +176,33 @@ describe('starter plan chooser, fitted to equipment', () => {
 })
 
 describe('loadStarterPlan', () => {
+  it('upgrades PPLUL without editing old routines, then reloads idempotently', () => {
+    expect(loadStarterPlan('pplul')).toBe(true)
+    const originalIds = S().routines.filter(r => r.name.startsWith('PPLUL · ')).map(r => r.id)
+    useStore.getState().update(st => {
+      for (const routine of st.routines.filter(r => originalIds.includes(r.id))) {
+        for (const ex of routine.ex) {
+          ex.reps = ex.repsMin
+          delete ex.repsMin
+          delete ex.prog
+          delete ex.restSec
+        }
+      }
+    })
+    const original = structuredClone(S().routines.filter(r => originalIds.includes(r.id)))
+    expect(loadStarterPlan('pplul')).toBe(true)
+    expect(S().routines.filter(r => originalIds.includes(r.id))).toEqual(original)
+    const updatedIds = [1, 2, 3, 4, 5].map(day => S().week[day][0])
+    expect(updatedIds.every(id => !originalIds.includes(id))).toBe(true)
+    expect(new Set(updatedIds).size).toBe(5)
+    const friday = S().routines.find(r => r.id === updatedIds[4])
+    expect(friday.ex.at(-1)).toMatchObject({ id: '0175', repsMin: 10, reps: 15, prog: 'double' })
+    const count = S().routines.length
+    expect(loadStarterPlan('pplul')).toBe(true)
+    expect(S().routines).toHaveLength(count)
+    expect([1, 2, 3, 4, 5].map(day => S().week[day][0])).toEqual(updatedIds)
+  })
+
   it('two different plans add independent routines', () => {
     loadStarterPlan('ppl')
     const first = S().routines.slice(1).map(r => r.id)

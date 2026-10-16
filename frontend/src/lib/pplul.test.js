@@ -38,7 +38,7 @@ describe('OpenGym native PPLUL starter', () => {
         expect(ex.note).toMatch(/reps.*RIR.*rest/)
       }
     }
-    expect(plan.routines[0].ex[0]).toMatchObject({ id: '0025', sets: 3, reps: 4 })
+    expect(plan.routines[0].ex[0]).toMatchObject({ id: '0025', sets: 3, repsMin: 4, reps: 6, prog: 'double', restSec: 180 })
     expect(plan.routines[0].ex[0].note).toContain('4–6 reps · 2 RIR · 3 min rest')
     expect(plan.routines[2].ex[2].note).toContain('per leg')
     expect(plan.routines[4].ex[1].note).toContain('8–12 reps per leg · 2 RIR · 2 min rest')
@@ -71,5 +71,21 @@ describe('OpenGym native PPLUL starter', () => {
     const fallback = build(undefined, { catalogue: filtered })
     expect(fallback.routines[0].ex[0].id).toBe('0289')
     expect(build(undefined, { catalogue: filtered.filter(e => e.id !== '0289') })).toBeNull()
+  })
+})
+
+
+describe('native progression-ready PPLUL', () => {
+  it('saves full rep ranges and rest timers for as-written and equipped plans', () => {
+    const allKit = ['barbell', 'dumbbell', 'cable', 'leverage machine', 'sled machine']
+    for (const plan of [build(), build(allKit)]) {
+      expect(plan).not.toBeNull()
+      for (const routine of plan.routines) for (const ex of routine.ex) {
+        expect(ex).toMatchObject({ prog: 'double', weight: 0 })
+        expect(ex.reps).toBeGreaterThan(ex.repsMin)
+        expect(ex.restSec).toBeGreaterThan(0)
+        expect(ex.note).toContain('RIR')
+      }
+    }
   })
 })

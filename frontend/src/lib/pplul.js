@@ -3,8 +3,8 @@
  * Uses only openGym catalogue IDs, ordinary routines, and Fixed Week weekdays.
  * It intentionally does not create Anime Ascension XP/challenge metadata.
  *
- * OpenGym's target reps are a single number; the lower end of each range is
- * loaded into the routine and the full range/RIR/rest is included in its note.
+ * Uses openGym's native double progression (repsMin..reps), and each lift's
+ * native rest timer. RIR targets remain guidance, not automatic XP proof.
  */
 
 // [catalogue ID priorities, working sets, lower reps, upper reps, RIR, rest]
@@ -52,6 +52,13 @@ const DAYS = [
   ] },
 ]
 
+// Choose a specific duration within each programmed rest window.
+// The full intended range remains in the exercise's note.
+const REST_SECONDS = Object.freeze({
+  '3 min': 180, '2–3 min': 150, '2 min': 120,
+  '90 sec': 90, '60–90 sec': 75,
+})
+
 export const PPLUL_DAYS = Object.freeze(DAYS.map(({ day, key }) => Object.freeze({ day, key })))
 
 /**
@@ -77,7 +84,8 @@ export function buildPplulPlan({ catalogue, uid, equipment, isAvailable = () => 
       const perLeg = (design.key === 'Legs A' && rows.length === 2) ||
         (design.key === 'Lower B' && rows.length === 1)
       rows.push({
-        id: matched.id, sets, reps: minimum, weight: 0,
+        id: matched.id, sets, reps: maximum, repsMin: minimum,
+        weight: 0, prog: 'double', restSec: REST_SECONDS[rest],
         note: `${minimum}–${maximum} reps${perLeg ? ' per leg' : ''} · ${rir} RIR · ${rest} rest`,
       })
     }

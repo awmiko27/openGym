@@ -197,7 +197,15 @@ export function loadStarterPlan(planId, profile, animeProfile) {
     // exercises) for the weekdays instead of a second Upper A, Lower A, ... under the same names.
     // A plan fitted to different equipment has other exercises, so it is added alongside.
     const idOf = {}
-    const sameLift = (a, b) => a.ex.length === b.ex.length && a.ex.every((e, i) => e.id === b.ex[i].id)
+    // On PPLUL reload, preserve existing fixed-rep or user-edited routines instead
+    // of silently recycling their IDs for a different prescription. An unchanged
+    // native PPLUL routine is still reused, so reloading twice is idempotent.
+    const sameLift = (a, b) => a.ex.length === b.ex.length && a.ex.every((e, i) => {
+      const candidate = b.ex[i]
+      if (e.id !== candidate.id) return false
+      if (planId !== 'pplul') return true
+      return ['sets', 'reps', 'repsMin', 'prog', 'restSec'].every(key => e[key] === candidate[key])
+    })
     plan.routines.forEach(r => {
       const have = st.routines.find(x => x.name === r.name && sameLift(x, r))
       if (have) idOf[r.id] = have.id
